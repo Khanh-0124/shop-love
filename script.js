@@ -510,35 +510,35 @@ function drawRoundedImage(image, size, opacity) {
 }
 
 function drawNeonText(item, opacity) {
-    const glowColor = 'hsla(' + item.hue + ', 100%, 58%, ';
-    const hotCoreColor = 'hsla(' + item.hue + ', 100%, 72%, ' + Math.min(opacity * 1.08, 1) + ')';
-    const fillColor = 'rgba(255, 248, 253, ' + Math.min(opacity * 1.18, 1) + ')';
+    const glowColor = 'rgba(204, 0, 112, ';
+    const hotCoreColor = 'rgba(226, 25, 137, ' + Math.min(opacity * 1.02, 1) + ')';
+    const fillColor = 'rgba(255, 235, 247, ' + Math.min(opacity * 1.12, 1) + ')';
 
     ctx.lineJoin = 'round';
 
-    ctx.lineWidth = Math.max(4.6, item.fontSize * 0.28);
-    ctx.strokeStyle = glowColor + '0.16)';
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = glowColor + '1)';
+    ctx.lineWidth = Math.max(3.2, item.fontSize * 0.2);
+    ctx.strokeStyle = glowColor + '0.1)';
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = glowColor + '0.72)';
 
     for (let i = 0; i < item.lines.length; i++) {
         ctx.strokeText(item.lines[i], 0, i * item.lineHeight);
     }
 
-    ctx.lineWidth = Math.max(3, item.fontSize * 0.16);
-    ctx.strokeStyle = glowColor + '0.92)';
-    ctx.shadowBlur = 3;
-    ctx.shadowColor = 'rgba(255, 0, 150, 1)';
+    ctx.lineWidth = Math.max(1.7, item.fontSize * 0.09);
+    ctx.strokeStyle = glowColor + '0.78)';
+    ctx.shadowBlur = 1.5;
+    ctx.shadowColor = 'rgba(204, 0, 112, 0.82)';
 
     for (let i = 0; i < item.lines.length; i++) {
         ctx.strokeText(item.lines[i], 0, i * item.lineHeight);
     }
 
-    ctx.lineWidth = Math.max(1.8, item.fontSize * 0.08);
+    ctx.lineWidth = Math.max(1, item.fontSize * 0.045);
     ctx.strokeStyle = hotCoreColor;
     ctx.fillStyle = fillColor;
-    ctx.shadowBlur = 1;
-    ctx.shadowColor = 'rgba(255, 245, 251, 1)';
+    ctx.shadowBlur = 0.4;
+    ctx.shadowColor = 'rgba(226, 25, 137, 0.65)';
 
     for (let i = 0; i < item.lines.length; i++) {
         const y = i * item.lineHeight;
