@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin ảnh yêu thương</title>
+    <link rel="stylesheet" href="admin.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <main class="admin-shell">
+        <header class="admin-header">
+            <div>
+                <p class="eyebrow">Love Rain Admin</p>
+                <h1>Quản lý bộ ảnh theo user</h1>
+            </div>
+            <a class="preview-link" href="index.html">Xem màn hình</a>
+        </header>
+
+        <section class="admin-grid">
+            <aside class="users-panel">
+                <form class="user-form" id="userForm">
+                    <label for="userName">Tên user</label>
+                    <div class="user-form__row">
+                        <input id="userName" type="text" autocomplete="off" placeholder="Ví dụ: Linh">
+                        <button type="submit">Thêm</button>
+                    </div>
+                </form>
+
+                <div class="user-list" id="userList" aria-label="Danh sách user"></div>
+            </aside>
+
+            <section class="gallery-panel">
+                <div class="gallery-header">
+                    <div>
+                        <p class="eyebrow">Bộ ảnh</p>
+                        <h2 id="activeUserTitle">Default</h2>
+                    </div>
+                    <button class="danger-button" id="deleteUserButton" type="button">Xóa user</button>
+                </div>
+
+                <label class="upload-zone" for="imageInput">
+                    <input id="imageInput" type="file" accept="image/*" multiple>
+                    <span>Chọn ảnh để thêm vào user này</span>
+                </label>
+
+                <p class="admin-status" id="adminStatus" aria-live="polite"></p>
+                <div class="image-grid" id="imageGrid"></div>
+            </section>
+        </section>
+    </main>
+
+    <script src="admin.js"></script>
+</body>
+</html>

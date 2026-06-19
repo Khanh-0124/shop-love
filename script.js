@@ -7,14 +7,15 @@ const starColors = ['#ffffff', '#fff5fb', '#ffb6e6', '#ff7ed1', '#ff4dbe'];
 const rainItems = [];
 const stars = [];
 const imageCards = [];
-const qrToggle = document.querySelector('.qr-toggle');
-const qrPanel = document.getElementById('qrPanel');
-const qrClose = document.querySelector('.qr-panel__close');
-const qrCanvas = document.getElementById('qrCanvas');
-const qrForm = document.getElementById('qrForm');
-const qrUrlInput = document.getElementById('qrUrlInput');
-const qrStatus = document.getElementById('qrStatus');
-const defaultShareUrl = 'https://khanh-0124.github.io/shop-love/';
+const galleryStorageKey = 'loveRainAdminGallery';
+const defaultUserId = 'default';
+const defaultUsers = [
+    {
+        id: defaultUserId,
+        name: 'Default',
+        images: []
+    }
+];
 
 let width = 0;
 let height = 0;
@@ -31,6 +32,11 @@ let startRotateX = 0;
 let startRotateY = 0;
 let needsDepthSort = true;
 let sortedRainItems = [];
+let galleryUsers = [];
+let activeUser = defaultUsers[0];
+let activeUserImages = [];
+let imageBurstUntil = 0;
+let galleryReady = false;
 const targetFrameMs = 1000 / 45;
 
 function randomBetween(min, max) {
@@ -38,157 +44,91 @@ function randomBetween(min, max) {
 }
 
 function getFontSize(depth) {
-    const base = width < 520 ? 17 : 21;
-    return base + depth * (width < 520 ? 3 : 5);
+    const base = width < 520 ? 12 : 15;
+    return base + depth * (width < 520 ? 2.1 : 3.1);
 }
 
 function getLineHeight(fontSize) {
-    return Math.round(fontSize * 1.32);
+    return Math.round(fontSize * 1.72);
 }
 
 function setTextFont(fontSize) {
     ctx.font = '700 ' + fontSize + 'px "Dancing Script", cursive';
 }
 
-function drawRoundedQrModule(qrCtx, x, y, size, radius) {
-    qrCtx.beginPath();
-    qrCtx.moveTo(x + radius, y);
-    qrCtx.lineTo(x + size - radius, y);
-    qrCtx.quadraticCurveTo(x + size, y, x + size, y + radius);
-    qrCtx.lineTo(x + size, y + size - radius);
-    qrCtx.quadraticCurveTo(x + size, y + size, x + size - radius, y + size);
-    qrCtx.lineTo(x + radius, y + size);
-    qrCtx.quadraticCurveTo(x, y + size, x, y + size - radius);
-    qrCtx.lineTo(x, y + radius);
-    qrCtx.quadraticCurveTo(x, y, x + radius, y);
-    qrCtx.fill();
+function normalizeUserId(value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'user';
 }
 
-function drawQrToCanvas(text) {
-    if (typeof qrcode !== 'function') {
-        throw new Error('Chưa tải được thư viện QR, hãy kiểm tra kết nối mạng.');
-    }
-
-    const qr = qrcode(0, 'H');
-    qr.addData(text);
-    qr.make();
-
-    const qrCtx = qrCanvas.getContext('2d');
-    const moduleCount = qr.getModuleCount();
-    const quietZone = 5;
-    const totalModules = moduleCount + quietZone * 2;
-    const pixelSize = qrCanvas.width;
-    const scale = Math.floor(pixelSize / totalModules);
-    const qrSize = scale * totalModules;
-    const offset = Math.floor((pixelSize - qrSize) / 2);
-    const finderLimit = 7;
-    const heartSize = Math.max(24, scale * 4.2);
-
-    qrCtx.fillStyle = '#ffffff';
-    qrCtx.fillRect(0, 0, pixelSize, pixelSize);
-
-    for (let y = 0; y < moduleCount; y++) {
-        for (let x = 0; x < moduleCount; x++) {
-            if (qr.isDark(y, x)) {
-                const inFinder = x < finderLimit && y < finderLimit
-                    || x >= moduleCount - finderLimit && y < finderLimit
-                    || x < finderLimit && y >= moduleCount - finderLimit;
-                const cellX = offset + (x + quietZone) * scale;
-                const cellY = offset + (y + quietZone) * scale;
-
-                qrCtx.fillStyle = inFinder ? '#14000d' : '#ff2d9f';
-                drawRoundedQrModule(qrCtx, cellX + scale * 0.08, cellY + scale * 0.08, scale * 0.84, inFinder ? 0 : scale * 0.28);
-            }
-        }
-    }
-
-    qrCtx.save();
-    qrCtx.translate(pixelSize / 2, pixelSize / 2);
-    qrCtx.fillStyle = '#ffffff';
-    qrCtx.beginPath();
-    qrCtx.arc(0, 0, heartSize * 0.66, 0, Math.PI * 2);
-    qrCtx.fill();
-    qrCtx.fillStyle = '#ff2d9f';
-    qrCtx.beginPath();
-    qrCtx.moveTo(0, heartSize * 0.34);
-    qrCtx.bezierCurveTo(-heartSize * 0.76, -heartSize * 0.2, -heartSize * 0.45, -heartSize * 0.72, 0, -heartSize * 0.34);
-    qrCtx.bezierCurveTo(heartSize * 0.45, -heartSize * 0.72, heartSize * 0.76, -heartSize * 0.2, 0, heartSize * 0.34);
-    qrCtx.fill();
-    qrCtx.restore();
-}
-
-function getQrShareUrl() {
-    if (window.location.protocol === 'file:' || isLocalShareUrl(window.location.href)) {
-        return defaultShareUrl;
-    }
-
-    return window.location.href;
-}
-
-function isLocalShareUrl(url) {
+function readGalleryUsers() {
     try {
-        const parsedUrl = new URL(url);
-        return parsedUrl.protocol === 'file:' || parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
-    } catch (error) {
-        return false;
-    }
-}
+        const savedUsers = JSON.parse(localStorage.getItem(galleryStorageKey));
 
-function updateQrStatus(url) {
-    if (!url) {
-        qrStatus.textContent = 'Nhập link deploy hoặc link IP LAN rồi bấm Tạo.';
-        return;
-    }
-
-    qrStatus.textContent = isLocalShareUrl(url)
-        ? 'Link local chỉ mở trên máy này. Hãy dùng link GitHub Pages hoặc IP LAN.'
-        : 'Máy khác quét QR sẽ mở link này.';
-}
-
-function renderQr(url) {
-    if (!url) {
-        const qrCtx = qrCanvas.getContext('2d');
-        qrCtx.fillStyle = '#ffffff';
-        qrCtx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
-        updateQrStatus('');
-        return;
-    }
-
-    drawQrToCanvas(url);
-    updateQrStatus(url);
-}
-
-function initQrPanel() {
-    const shareUrl = getQrShareUrl();
-    qrUrlInput.value = shareUrl;
-    renderQr(shareUrl);
-
-    qrToggle.addEventListener('click', () => {
-        const isOpen = qrPanel.classList.toggle('is-open');
-        qrToggle.setAttribute('aria-expanded', String(isOpen));
-    });
-
-    qrClose.addEventListener('click', () => {
-        qrPanel.classList.remove('is-open');
-        qrToggle.setAttribute('aria-expanded', 'false');
-    });
-
-    qrForm.addEventListener('submit', (event) => {
-        event.preventDefault();
-
-        try {
-            const url = qrUrlInput.value.trim();
-            renderQr(url);
-        } catch (error) {
-            qrStatus.textContent = error.message;
+        if (Array.isArray(savedUsers) && savedUsers.length > 0) {
+            return savedUsers.map((user) => ({
+                id: user.id || normalizeUserId(user.name || 'user'),
+                name: user.name || 'User',
+                images: Array.isArray(user.images) ? user.images : []
+            }));
         }
+    } catch (error) {
+        localStorage.removeItem(galleryStorageKey);
+    }
+
+    return defaultUsers;
+}
+
+function getUserIdFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('user') || localStorage.getItem('loveRainActiveUser') || defaultUserId;
+}
+
+function loadImage(src) {
+    return new Promise((resolve) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => resolve(null);
+        image.src = src;
     });
+}
+
+async function loadActiveUserImages() {
+    const loadedImages = await Promise.all(activeUser.images.map((image) => loadImage(image.src)));
+    activeUserImages = loadedImages.filter(Boolean);
+    galleryReady = true;
+    initScene();
+}
+
+function setActiveUser(userId, shouldUpdateUrl = true) {
+    activeUser = galleryUsers.find((user) => user.id === userId) || galleryUsers[0] || defaultUsers[0];
+    localStorage.setItem('loveRainActiveUser', activeUser.id);
+
+    if (shouldUpdateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('user', activeUser.id);
+        window.history.replaceState({}, '', url);
+    }
+
+    imageBurstUntil = performance.now() + 4200;
+    loadActiveUserImages();
+}
+
+function initGalleryUsers() {
+    galleryUsers = readGalleryUsers();
+    activeUser = galleryUsers.find((user) => user.id === getUserIdFromUrl()) || galleryUsers[0] || defaultUsers[0];
+    localStorage.setItem('loveRainActiveUser', activeUser.id);
+    loadActiveUserImages();
 }
 
 function createImageCard(index) {
     const card = document.createElement('canvas');
     const cardCtx = card.getContext('2d');
     const size = 220;
+    const sourceImage = activeUserImages[index % activeUserImages.length];
     const gradients = [
         ['#ff7ed1', '#2b001d'],
         ['#fff5fb', '#ff4dbe'],
@@ -199,11 +139,22 @@ function createImageCard(index) {
     card.width = size;
     card.height = size;
 
-    const gradient = cardCtx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, colors[0]);
-    gradient.addColorStop(1, colors[1]);
-    cardCtx.fillStyle = gradient;
-    cardCtx.fillRect(0, 0, size, size);
+    if (sourceImage) {
+        const scale = Math.max(size / sourceImage.width, size / sourceImage.height);
+        const drawWidth = sourceImage.width * scale;
+        const drawHeight = sourceImage.height * scale;
+        const drawX = (size - drawWidth) / 2;
+        const drawY = (size - drawHeight) / 2;
+        cardCtx.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight);
+        cardCtx.fillStyle = 'rgba(40, 0, 28, 0.2)';
+        cardCtx.fillRect(0, 0, size, size);
+    } else {
+        const gradient = cardCtx.createLinearGradient(0, 0, size, size);
+        gradient.addColorStop(0, colors[0]);
+        gradient.addColorStop(1, colors[1]);
+        cardCtx.fillStyle = gradient;
+        cardCtx.fillRect(0, 0, size, size);
+    }
 
     cardCtx.globalAlpha = 0.2;
     cardCtx.fillStyle = '#ffffff';
@@ -218,26 +169,18 @@ function createImageCard(index) {
     cardCtx.fillStyle = '#fff';
     cardCtx.shadowBlur = 22;
     cardCtx.shadowColor = '#fff';
-    cardCtx.fillText(['💖', '🌹', '✨'][index % 3], size / 2, size / 2);
-
-    cardCtx.font = '700 24px "Dancing Script", cursive';
-    cardCtx.lineJoin = 'round';
-    cardCtx.lineWidth = 2.2;
-    cardCtx.strokeStyle = 'rgba(255, 77, 190, 0.92)';
-    cardCtx.shadowBlur = 7;
-    cardCtx.shadowColor = '#ff4dbe';
-    cardCtx.strokeText(messages[index % messages.length], size / 2, size * 0.78);
-    cardCtx.shadowBlur = 3;
-    cardCtx.fillStyle = '#fff8fd';
-    cardCtx.fillText(messages[index % messages.length], size / 2, size * 0.78);
+    if (!sourceImage) {
+        cardCtx.fillText(['💖', '🌹', '✨'][index % 3], size / 2, size / 2);
+    }
 
     return card;
 }
 
 function initImageCards() {
     imageCards.length = 0;
+    const cardCount = Math.max(3, activeUserImages.length);
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < cardCount; i++) {
         imageCards.push(createImageCard(i));
     }
 }
@@ -267,17 +210,17 @@ function wrapText(text, maxWidth, fontSize) {
 }
 
 function getLanePosition(index, totalItems, spreadInitial, blockHeight) {
-    const columnCount = width < 520 ? 3 : 5;
+    const columnCount = width < 520 ? 4 : 7;
     const rowCount = Math.ceil(totalItems / columnCount);
     const column = index % columnCount;
     const row = Math.floor(index / columnCount);
     const focusWidth = width * (width < 520 ? 0.82 : 0.7);
     const startX = (width - focusWidth) / 2;
     const columnWidth = focusWidth / columnCount;
-    const rowHeight = (height + blockHeight * 3.1) / Math.max(rowCount, 1);
+    const rowHeight = (height + blockHeight * 3.2) / Math.max(rowCount, 1);
     const stagger = row % 2 === 0 ? columnWidth * 0.06 : -columnWidth * 0.06;
     const jitterX = randomBetween(-columnWidth * 0.04, columnWidth * 0.04);
-    const jitterY = randomBetween(-rowHeight * 0.035, rowHeight * 0.035);
+    const jitterY = randomBetween(-rowHeight * 0.018, rowHeight * 0.018);
     const x = startX + columnWidth * (column + 0.5) + stagger + jitterX;
     const y = spreadInitial
         ? rowHeight * row - blockHeight - height * 0.18 + jitterY
@@ -295,8 +238,9 @@ function createRainItem(spreadInitial = false, index = spawnIndex, totalItems = 
     const lineHeight = getLineHeight(fontSize);
     const maxTextWidth = Math.min(width * 0.84, width < 520 ? 310 : 720);
     const randomType = Math.random();
-    const isImage = randomType < 0.18;
-    const isIcon = !isImage && randomType < 0.32;
+    const imageChance = activeUserImages.length > 0 && performance.now() < imageBurstUntil ? 0.58 : 0.22;
+    const isImage = randomType < imageChance;
+    const isIcon = !isImage && randomType < imageChance + 0.14;
     const text = messages[Math.floor(Math.random() * messages.length)];
     const lines = isImage ? [] : isIcon ? [icons[Math.floor(Math.random() * icons.length)]] : wrapText(text, maxTextWidth, fontSize);
     const imageSize = Math.round((width < 520 ? 64 : 82) + depth * (width < 520 ? 9 : 13));
@@ -342,7 +286,7 @@ function createStar() {
 }
 
 function initScene() {
-    const itemCount = width < 520 ? 16 : 28;
+    const itemCount = width < 520 ? 26 : 46;
     const starCount = width < 520 ? 90 : 160;
     rainItems.length = 0;
     stars.length = 0;
@@ -369,7 +313,10 @@ function resizeCanvas() {
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    initScene();
+
+    if (galleryReady) {
+        initScene();
+    }
 }
 
 function drawBackground() {
@@ -516,28 +463,28 @@ function drawNeonText(item, opacity) {
 
     ctx.lineJoin = 'round';
 
-    ctx.lineWidth = Math.max(3.5, item.fontSize * 0.14);
-    ctx.strokeStyle = glowColor + '0.14)';
-    ctx.shadowBlur = isDragging ? 12 : item.z > 2 ? 20 : 16;
+    ctx.lineWidth = Math.max(4.6, item.fontSize * 0.28);
+    ctx.strokeStyle = glowColor + '0.16)';
+    ctx.shadowBlur = 8;
     ctx.shadowColor = glowColor + '1)';
 
     for (let i = 0; i < item.lines.length; i++) {
         ctx.strokeText(item.lines[i], 0, i * item.lineHeight);
     }
 
-    ctx.lineWidth = Math.max(1.8, item.fontSize * 0.072);
+    ctx.lineWidth = Math.max(3, item.fontSize * 0.16);
     ctx.strokeStyle = glowColor + '0.92)';
-    ctx.shadowBlur = isDragging ? 6 : item.z > 2 ? 8 : 6;
+    ctx.shadowBlur = 3;
     ctx.shadowColor = 'rgba(255, 0, 150, 1)';
 
     for (let i = 0; i < item.lines.length; i++) {
         ctx.strokeText(item.lines[i], 0, i * item.lineHeight);
     }
 
-    ctx.lineWidth = Math.max(0.9, item.fontSize * 0.038);
+    ctx.lineWidth = Math.max(1.8, item.fontSize * 0.08);
     ctx.strokeStyle = hotCoreColor;
     ctx.fillStyle = fillColor;
-    ctx.shadowBlur = isDragging ? 2 : item.z > 2 ? 3 : 2;
+    ctx.shadowBlur = 1;
     ctx.shadowColor = 'rgba(255, 245, 251, 1)';
 
     for (let i = 0; i < item.lines.length; i++) {
@@ -653,7 +600,7 @@ function animate(currentTime) {
 }
 
 resizeCanvas();
-initQrPanel();
+initGalleryUsers();
 window.addEventListener('resize', resizeCanvas);
 canvas.addEventListener('pointerdown', handlePointerDown);
 canvas.addEventListener('pointermove', handlePointerMove);
