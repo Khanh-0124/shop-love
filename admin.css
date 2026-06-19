@@ -91,7 +91,8 @@ h2 {
     padding: 16px;
 }
 
-.user-form label {
+.user-form label,
+.music-form label {
     display: block;
     margin-bottom: 8px;
     color: rgba(255, 248, 253, 0.76);
@@ -99,13 +100,19 @@ h2 {
     font-weight: 700;
 }
 
-.user-form__row {
+.user-form__row,
+.music-form__row {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 8px;
 }
 
-.user-form input {
+.music-form {
+    margin-top: 16px;
+}
+
+.user-form input,
+.music-form input {
     min-width: 0;
     min-height: 42px;
     border: 1px solid rgba(255, 245, 251, 0.22);
@@ -115,7 +122,8 @@ h2 {
     padding: 0 12px;
 }
 
-.user-form button {
+.user-form button,
+.music-form button {
     border: 0;
     background: #ff4dbe;
     color: #16000f;
@@ -160,7 +168,8 @@ h2 {
     padding: 0 14px;
 }
 
-.upload-zone {
+.upload-zone,
+.audio-upload {
     min-height: 116px;
     display: grid;
     place-items: center;
@@ -174,7 +183,13 @@ h2 {
     padding: 18px;
 }
 
-.upload-zone input {
+.audio-upload {
+    min-height: 68px;
+    margin-top: 10px;
+}
+
+.upload-zone input,
+.audio-upload input {
     display: none;
 }
 

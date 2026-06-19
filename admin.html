@@ -41,6 +41,19 @@
                     <button class="danger-button" id="deleteUserButton" type="button">Xóa user</button>
                 </div>
 
+                <form class="music-form" id="musicForm">
+                    <label for="musicUrl">Direct audio URL của user</label>
+                    <div class="music-form__row">
+                        <input id="musicUrl" type="url" inputmode="url" placeholder="https://.../music.mp3">
+                        <button type="submit">Lưu nhạc</button>
+                    </div>
+                </form>
+
+                <label class="audio-upload" for="audioInput">
+                    <input id="audioInput" type="file" accept="audio/*">
+                    <span>Hoặc chọn file nhạc để phát chắc chắn</span>
+                </label>
+
                 <label class="upload-zone" for="imageInput">
                     <input id="imageInput" type="file" accept="image/*" multiple>
                     <span>Chọn ảnh để thêm vào user này</span>

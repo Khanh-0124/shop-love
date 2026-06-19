@@ -4,6 +4,8 @@ const defaultUsers = [
     {
         id: defaultUserId,
         name: 'Default',
+        musicUrl: '',
+        musicSrc: '',
         images: []
     }
 ];
@@ -13,6 +15,9 @@ const userNameInput = document.getElementById('userName');
 const userList = document.getElementById('userList');
 const activeUserTitle = document.getElementById('activeUserTitle');
 const deleteUserButton = document.getElementById('deleteUserButton');
+const musicForm = document.getElementById('musicForm');
+const musicUrlInput = document.getElementById('musicUrl');
+const audioInput = document.getElementById('audioInput');
 const imageInput = document.getElementById('imageInput');
 const adminStatus = document.getElementById('adminStatus');
 const imageGrid = document.getElementById('imageGrid');
@@ -36,6 +41,8 @@ function readUsers() {
             return savedUsers.map((user) => ({
                 id: user.id || normalizeUserId(user.name || 'user'),
                 name: user.name || 'User',
+                musicUrl: user.musicUrl || '',
+                musicSrc: user.musicSrc || '',
                 images: Array.isArray(user.images) ? user.images : []
             }));
         }
@@ -64,6 +71,30 @@ function setStatus(message) {
     adminStatus.textContent = message;
 }
 
+function isTikTokUrl(url) {
+    try {
+        return new URL(url).hostname.includes('tiktok.com');
+    } catch (error) {
+        return false;
+    }
+}
+
+function isDirectAudioUrl(url) {
+    if (!url) {
+        return true;
+    }
+
+    try {
+        const parsedUrl = new URL(url);
+        const pathname = parsedUrl.pathname.toLowerCase();
+        return /\.(mp3|m4a|aac|wav|ogg|opus)(\?.*)?$/.test(pathname + parsedUrl.search)
+            || parsedUrl.searchParams.has('audio')
+            || parsedUrl.searchParams.has('download');
+    } catch (error) {
+        return false;
+    }
+}
+
 function renderUsers() {
     userList.innerHTML = '';
 
@@ -89,6 +120,7 @@ function renderImages() {
     const activeUser = getActiveUser();
     imageGrid.innerHTML = '';
     activeUserTitle.textContent = activeUser.name;
+    musicUrlInput.value = activeUser.musicUrl || '';
     deleteUserButton.disabled = activeUser.id === defaultUserId;
 
     activeUser.images.forEach((image, index) => {
@@ -170,6 +202,8 @@ userForm.addEventListener('submit', (event) => {
     const user = {
         id: makeUniqueUserId(name),
         name,
+        musicUrl: '',
+        musicSrc: '',
         images: []
     };
     users.push(user);
@@ -196,6 +230,58 @@ deleteUserButton.addEventListener('click', () => {
         render();
         setStatus('Đã xóa user.');
     }
+});
+
+musicForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const activeUser = getActiveUser();
+    const musicUrl = musicUrlInput.value.trim();
+
+    if (isTikTokUrl(musicUrl)) {
+        setStatus('Link TikTok là trang video, không phải direct audio URL. Hãy dùng link .mp3/.m4a/.wav hoặc upload file nhạc.');
+        return;
+    }
+
+    if (!isDirectAudioUrl(musicUrl)) {
+        setStatus('URL này chưa giống file audio trực tiếp. Hãy dùng link kết thúc bằng .mp3, .m4a, .wav, .ogg...');
+        return;
+    }
+
+    activeUser.musicUrl = musicUrl;
+    activeUser.musicSrc = '';
+
+    if (saveUsers()) {
+        render();
+        setStatus(activeUser.musicUrl ? 'Đã lưu direct audio URL cho ' + activeUser.name + '.' : 'Đã xóa link nhạc.');
+    }
+});
+
+audioInput.addEventListener('change', () => {
+    const file = audioInput.files && audioInput.files[0];
+    const activeUser = getActiveUser();
+
+    if (!file) {
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        activeUser.musicSrc = reader.result;
+        activeUser.musicUrl = '';
+        musicUrlInput.value = '';
+
+        if (saveUsers()) {
+            render();
+            setStatus('Đã lưu file nhạc cho ' + activeUser.name + '.');
+        }
+
+        audioInput.value = '';
+    };
+    reader.onerror = () => {
+        setStatus('Không đọc được file nhạc, thử file khác nhé.');
+        audioInput.value = '';
+    };
+    reader.readAsDataURL(file);
 });
 
 imageInput.addEventListener('change', async () => {

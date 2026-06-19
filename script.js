@@ -2,7 +2,7 @@ const canvas = document.getElementById('loveRainCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 
 const messages = ['Love you more', 'Mãi bên nhau nhé', 'I love you', 'Thương', 'Bình yên là đây', 'Chỉ cần nhau thôi', 'Forever', 'My everything', 'Now and forever'];
-const icons = ['❤️', '💖', '💗', '💕', '🌹', '✨'];
+const icons = ['❤️', '✨💍', '💗', '💕', '🌹', '✨💍'];
 const starColors = ['#ffffff', '#fff5fb', '#ffb6e6', '#ff7ed1', '#ff4dbe'];
 const rainItems = [];
 const stars = [];
@@ -13,6 +13,8 @@ const defaultUsers = [
     {
         id: defaultUserId,
         name: 'Default',
+        musicUrl: '',
+        musicSrc: '',
         images: []
     }
 ];
@@ -37,6 +39,8 @@ let activeUser = defaultUsers[0];
 let activeUserImages = [];
 let imageBurstUntil = 0;
 let galleryReady = false;
+let userMusic = null;
+let pendingMusicUrl = '';
 const targetFrameMs = 1000 / 45;
 
 function randomBetween(min, max) {
@@ -44,8 +48,8 @@ function randomBetween(min, max) {
 }
 
 function getFontSize(depth) {
-    const base = width < 520 ? 12 : 15;
-    return base + depth * (width < 520 ? 2.1 : 3.1);
+    const base = width < 520 ? 18 : 19;
+    return base + depth * (width < 520 ? 2.4 : 3.4);
 }
 
 function getLineHeight(fontSize) {
@@ -72,6 +76,8 @@ function readGalleryUsers() {
             return savedUsers.map((user) => ({
                 id: user.id || normalizeUserId(user.name || 'user'),
                 name: user.name || 'User',
+                musicUrl: user.musicUrl || '',
+                musicSrc: user.musicSrc || '',
                 images: Array.isArray(user.images) ? user.images : []
             }));
         }
@@ -101,6 +107,7 @@ async function loadActiveUserImages() {
     activeUserImages = loadedImages.filter(Boolean);
     galleryReady = true;
     initScene();
+    startUserMusic(activeUser.musicSrc || activeUser.musicUrl || '');
 }
 
 function setActiveUser(userId, shouldUpdateUrl = true) {
@@ -115,6 +122,52 @@ function setActiveUser(userId, shouldUpdateUrl = true) {
 
     imageBurstUntil = performance.now() + 4200;
     loadActiveUserImages();
+}
+
+function stopUserMusic() {
+    if (userMusic) {
+        userMusic.pause();
+        userMusic.removeAttribute('src');
+        userMusic.load();
+    }
+
+    userMusic = null;
+    pendingMusicUrl = '';
+}
+
+function playUserMusic() {
+    if (!pendingMusicUrl) {
+        return;
+    }
+
+    if (!userMusic) {
+        userMusic = new Audio();
+        userMusic.crossOrigin = 'anonymous';
+        userMusic.loop = true;
+        userMusic.preload = 'auto';
+        userMusic.src = pendingMusicUrl;
+    }
+
+    userMusic.volume = 0.72;
+    userMusic.play().catch((error) => {
+        console.warn('Không thể tự phát nhạc. Hãy chạm màn hình hoặc dùng link file audio trực tiếp.', error);
+    });
+}
+
+function startUserMusic(musicUrl) {
+    if (!musicUrl) {
+        stopUserMusic();
+        return;
+    }
+
+    if (pendingMusicUrl === musicUrl && userMusic) {
+        playUserMusic();
+        return;
+    }
+
+    stopUserMusic();
+    pendingMusicUrl = musicUrl;
+    playUserMusic();
 }
 
 function initGalleryUsers() {
@@ -146,8 +199,6 @@ function createImageCard(index) {
         const drawX = (size - drawWidth) / 2;
         const drawY = (size - drawHeight) / 2;
         cardCtx.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight);
-        cardCtx.fillStyle = 'rgba(40, 0, 28, 0.2)';
-        cardCtx.fillRect(0, 0, size, size);
     } else {
         const gradient = cardCtx.createLinearGradient(0, 0, size, size);
         gradient.addColorStop(0, colors[0]);
@@ -156,11 +207,13 @@ function createImageCard(index) {
         cardCtx.fillRect(0, 0, size, size);
     }
 
-    cardCtx.globalAlpha = 0.2;
-    cardCtx.fillStyle = '#ffffff';
-    cardCtx.beginPath();
-    cardCtx.arc(size * 0.2, size * 0.18, size * 0.28, 0, Math.PI * 2);
-    cardCtx.fill();
+    if (!sourceImage) {
+        cardCtx.globalAlpha = 0.2;
+        cardCtx.fillStyle = '#ffffff';
+        cardCtx.beginPath();
+        cardCtx.arc(size * 0.2, size * 0.18, size * 0.28, 0, Math.PI * 2);
+        cardCtx.fill();
+    }
 
     cardCtx.globalAlpha = 1;
     cardCtx.textAlign = 'center';
@@ -536,6 +589,7 @@ function drawRainItem(item, deltaTime, time) {
 }
 
 function handlePointerDown(event) {
+    playUserMusic();
     isDragging = true;
     dragStartX = event.clientX;
     dragStartY = event.clientY;
