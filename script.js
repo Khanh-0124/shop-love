@@ -7,6 +7,14 @@ const starColors = ['#ffffff', '#fff5fb', '#ffb6e6', '#ff7ed1', '#ff4dbe'];
 const rainItems = [];
 const stars = [];
 const imageCards = [];
+const qrToggle = document.querySelector('.qr-toggle');
+const qrPanel = document.getElementById('qrPanel');
+const qrClose = document.querySelector('.qr-panel__close');
+const qrCanvas = document.getElementById('qrCanvas');
+const qrForm = document.getElementById('qrForm');
+const qrUrlInput = document.getElementById('qrUrlInput');
+const qrStatus = document.getElementById('qrStatus');
+const defaultShareUrl = 'https://khanh-0124.github.io/shop-love/';
 
 let width = 0;
 let height = 0;
@@ -40,6 +48,141 @@ function getLineHeight(fontSize) {
 
 function setTextFont(fontSize) {
     ctx.font = '700 ' + fontSize + 'px "Dancing Script", cursive';
+}
+
+function drawRoundedQrModule(qrCtx, x, y, size, radius) {
+    qrCtx.beginPath();
+    qrCtx.moveTo(x + radius, y);
+    qrCtx.lineTo(x + size - radius, y);
+    qrCtx.quadraticCurveTo(x + size, y, x + size, y + radius);
+    qrCtx.lineTo(x + size, y + size - radius);
+    qrCtx.quadraticCurveTo(x + size, y + size, x + size - radius, y + size);
+    qrCtx.lineTo(x + radius, y + size);
+    qrCtx.quadraticCurveTo(x, y + size, x, y + size - radius);
+    qrCtx.lineTo(x, y + radius);
+    qrCtx.quadraticCurveTo(x, y, x + radius, y);
+    qrCtx.fill();
+}
+
+function drawQrToCanvas(text) {
+    if (typeof qrcode !== 'function') {
+        throw new Error('Chưa tải được thư viện QR, hãy kiểm tra kết nối mạng.');
+    }
+
+    const qr = qrcode(0, 'H');
+    qr.addData(text);
+    qr.make();
+
+    const qrCtx = qrCanvas.getContext('2d');
+    const moduleCount = qr.getModuleCount();
+    const quietZone = 5;
+    const totalModules = moduleCount + quietZone * 2;
+    const pixelSize = qrCanvas.width;
+    const scale = Math.floor(pixelSize / totalModules);
+    const qrSize = scale * totalModules;
+    const offset = Math.floor((pixelSize - qrSize) / 2);
+    const finderLimit = 7;
+    const heartSize = Math.max(24, scale * 4.2);
+
+    qrCtx.fillStyle = '#ffffff';
+    qrCtx.fillRect(0, 0, pixelSize, pixelSize);
+
+    for (let y = 0; y < moduleCount; y++) {
+        for (let x = 0; x < moduleCount; x++) {
+            if (qr.isDark(y, x)) {
+                const inFinder = x < finderLimit && y < finderLimit
+                    || x >= moduleCount - finderLimit && y < finderLimit
+                    || x < finderLimit && y >= moduleCount - finderLimit;
+                const cellX = offset + (x + quietZone) * scale;
+                const cellY = offset + (y + quietZone) * scale;
+
+                qrCtx.fillStyle = inFinder ? '#14000d' : '#ff2d9f';
+                drawRoundedQrModule(qrCtx, cellX + scale * 0.08, cellY + scale * 0.08, scale * 0.84, inFinder ? 0 : scale * 0.28);
+            }
+        }
+    }
+
+    qrCtx.save();
+    qrCtx.translate(pixelSize / 2, pixelSize / 2);
+    qrCtx.fillStyle = '#ffffff';
+    qrCtx.beginPath();
+    qrCtx.arc(0, 0, heartSize * 0.66, 0, Math.PI * 2);
+    qrCtx.fill();
+    qrCtx.fillStyle = '#ff2d9f';
+    qrCtx.beginPath();
+    qrCtx.moveTo(0, heartSize * 0.34);
+    qrCtx.bezierCurveTo(-heartSize * 0.76, -heartSize * 0.2, -heartSize * 0.45, -heartSize * 0.72, 0, -heartSize * 0.34);
+    qrCtx.bezierCurveTo(heartSize * 0.45, -heartSize * 0.72, heartSize * 0.76, -heartSize * 0.2, 0, heartSize * 0.34);
+    qrCtx.fill();
+    qrCtx.restore();
+}
+
+function getQrShareUrl() {
+    if (window.location.protocol === 'file:' || isLocalShareUrl(window.location.href)) {
+        return defaultShareUrl;
+    }
+
+    return window.location.href;
+}
+
+function isLocalShareUrl(url) {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.protocol === 'file:' || parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
+    } catch (error) {
+        return false;
+    }
+}
+
+function updateQrStatus(url) {
+    if (!url) {
+        qrStatus.textContent = 'Nhập link deploy hoặc link IP LAN rồi bấm Tạo.';
+        return;
+    }
+
+    qrStatus.textContent = isLocalShareUrl(url)
+        ? 'Link local chỉ mở trên máy này. Hãy dùng link GitHub Pages hoặc IP LAN.'
+        : 'Máy khác quét QR sẽ mở link này.';
+}
+
+function renderQr(url) {
+    if (!url) {
+        const qrCtx = qrCanvas.getContext('2d');
+        qrCtx.fillStyle = '#ffffff';
+        qrCtx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
+        updateQrStatus('');
+        return;
+    }
+
+    drawQrToCanvas(url);
+    updateQrStatus(url);
+}
+
+function initQrPanel() {
+    const shareUrl = getQrShareUrl();
+    qrUrlInput.value = shareUrl;
+    renderQr(shareUrl);
+
+    qrToggle.addEventListener('click', () => {
+        const isOpen = qrPanel.classList.toggle('is-open');
+        qrToggle.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    qrClose.addEventListener('click', () => {
+        qrPanel.classList.remove('is-open');
+        qrToggle.setAttribute('aria-expanded', 'false');
+    });
+
+    qrForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        try {
+            const url = qrUrlInput.value.trim();
+            renderQr(url);
+        } catch (error) {
+            qrStatus.textContent = error.message;
+        }
+    });
 }
 
 function createImageCard(index) {
@@ -510,6 +653,7 @@ function animate(currentTime) {
 }
 
 resizeCanvas();
+initQrPanel();
 window.addEventListener('resize', resizeCanvas);
 canvas.addEventListener('pointerdown', handlePointerDown);
 canvas.addEventListener('pointermove', handlePointerMove);
