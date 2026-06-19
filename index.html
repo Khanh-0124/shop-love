@@ -12,6 +12,20 @@
 <body>
     <!-- Canvas tạo hiệu ứng chữ rơi mượt -->
     <canvas id="loveRainCanvas"></canvas>
+
+    <button class="qr-toggle" type="button" aria-controls="qrPanel" aria-expanded="false">QR</button>
+    <section class="qr-panel" id="qrPanel" aria-label="Mã QR chia sẻ">
+        <div class="qr-panel__header">
+            <h1>Mã QR</h1>
+            <button class="qr-panel__close" type="button" aria-label="Đóng">×</button>
+        </div>
+        <canvas class="qr-canvas" id="qrCanvas" width="224" height="224"></canvas>
+        <form class="qr-form" id="qrForm">
+            <input id="qrUrlInput" type="url" inputmode="url" autocomplete="url" placeholder="https://..." aria-label="Link chia sẻ">
+            <button type="submit">Tạo</button>
+        </form>
+        <p class="qr-status" id="qrStatus" aria-live="polite"></p>
+    </section>
     
     <script src="script.js"></script>
 </body>
