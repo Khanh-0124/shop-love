@@ -6,6 +6,8 @@ const icons = ['❤️', '✨💍', '💗', '💕', '🌹', '✨💍'];
 const starColors = ['#ffffff', '#fff5fb', '#ffb6e6', '#ff7ed1', '#ff4dbe'];
 const rainItems = [];
 const stars = [];
+const shootingStars = [];
+const maxShootingStars = 4;
 const imageCards = [];
 const galleryStorageKey = 'loveRainAdminGallery';
 const defaultUserId = 'default';
@@ -411,11 +413,80 @@ function createStar() {
     };
 }
 
+function createShootingStar() {
+    const angle = randomBetween(Math.PI * 0.72, Math.PI * 0.85); // Hướng chéo từ trên bên phải xuống dưới bên trái
+    const speed = randomBetween(320, 560);
+    return {
+        x: randomBetween(width * 0.2, width * 1.4),
+        y: randomBetween(-120, height * 0.3),
+        dx: Math.cos(angle) * speed,
+        dy: Math.sin(angle) * speed,
+        len: randomBetween(120, 310),
+        thickness: randomBetween(1.2, 2.8),
+        opacity: randomBetween(0.42, 0.96),
+        color: ['rgba(255, 255, 255, ', 'rgba(255, 218, 233, ', 'rgba(255, 182, 193, '][Math.floor(Math.random() * 3)],
+        delay: randomBetween(0.5, 9),
+        active: false
+    };
+}
+
+function drawShootingStars(deltaTime) {
+    ctx.save();
+    for (let i = 0; i < shootingStars.length; i++) {
+        const star = shootingStars[i];
+
+        if (!star.active) {
+            star.delay -= deltaTime;
+            if (star.delay <= 0) {
+                star.x = randomBetween(width * 0.3, width * 1.3);
+                star.y = randomBetween(-80, height * 0.2);
+                star.active = true;
+                star.opacity = randomBetween(0.5, 0.95);
+            }
+            continue;
+        }
+
+        star.x += star.dx * deltaTime;
+        star.y += star.dy * deltaTime;
+
+        const angle = Math.atan2(star.dy, star.dx);
+        const trailX = star.x - Math.cos(angle) * star.len;
+        const trailY = star.y - Math.sin(angle) * star.len;
+
+        const grad = ctx.createLinearGradient(star.x, star.y, trailX, trailY);
+        grad.addColorStop(0, star.color + star.opacity + ')');
+        grad.addColorStop(1, star.color + '0)');
+
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = star.thickness;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(star.x, star.y);
+        ctx.lineTo(trailX, trailY);
+        ctx.stroke();
+
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#fff';
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + star.opacity + ')';
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.thickness * 1.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if (star.y > height + 100 || star.x < -100) {
+            star.active = false;
+            star.delay = randomBetween(3, 14);
+        }
+    }
+    ctx.restore();
+}
+
 function initScene() {
     const itemCount = width < 520 ? 26 : 46;
     const starCount = width < 520 ? 90 : 160;
     rainItems.length = 0;
     stars.length = 0;
+    shootingStars.length = 0;
     spawnIndex = 0;
     needsDepthSort = true;
     sortedRainItems = [];
@@ -427,6 +498,10 @@ function initScene() {
 
     for (let i = 0; i < starCount; i++) {
         stars.push(createStar());
+    }
+
+    for (let i = 0; i < maxShootingStars; i++) {
+        shootingStars.push(createShootingStar());
     }
 }
 
@@ -703,6 +778,7 @@ function animate(currentTime) {
 
     drawBackground();
     drawStars(deltaTime, time);
+    drawShootingStars(deltaTime);
 
     for (let i = 0; i < rainItems.length; i++) {
         const item = rainItems[i];
