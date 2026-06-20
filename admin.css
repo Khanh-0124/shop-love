@@ -241,3 +241,38 @@ h2 {
         grid-template-columns: 1fr;
     }
 }
+
+.message-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    margin-bottom: 16px;
+}
+
+.message-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 245, 251, 0.14);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: #fff8fd;
+}
+
+.message-tag button {
+    background: none;
+    border: none;
+    color: #ff5b8b;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0 2px;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.message-tag button:hover {
+    color: #ff3b73;
+}

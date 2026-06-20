@@ -1,7 +1,7 @@
 const canvas = document.getElementById('loveRainCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 
-const messages = ['Love you more', 'Mãi bên nhau nha', 'I love you', 'Thương', 'Chỉ thương một người', 'Love you to the moon', 'Forever', 'My everything', 'Now and forever'];
+const defaultMessages = ['Love you more', 'Mãi bên nhau nha', 'I love you', 'Thương', 'Chỉ thương một người', 'Love you to the moon', 'Forever', 'My everything', 'Now and forever'];
 const icons = ['❤️', '✨💍', '💗', '💕', '🌹', '✨💍'];
 const starColors = ['#ffffff', '#fff5fb', '#ffb6e6', '#ff7ed1', '#ff4dbe'];
 const rainItems = [];
@@ -78,7 +78,8 @@ function normalizeUsers(rawUsers) {
         name: user.name || 'User',
         musicUrl: user.musicUrl || '',
         musicSrc: user.musicSrc || '',
-        images: Array.isArray(user.images) ? user.images : []
+        images: Array.isArray(user.images) ? user.images : [],
+        messages: Array.isArray(user.messages) ? user.messages : []
     }));
 }
 
@@ -369,7 +370,8 @@ function createRainItem(spreadInitial = false, index = spawnIndex, totalItems = 
     const imageChance = activeUserImages.length > 0 && performance.now() < imageBurstUntil ? 0.58 : 0.22;
     const isImage = randomType < imageChance;
     const isIcon = !isImage && randomType < imageChance + 0.14;
-    const text = messages[Math.floor(Math.random() * messages.length)];
+    const activeMessages = (activeUser && activeUser.messages && activeUser.messages.length > 0) ? activeUser.messages : defaultMessages;
+    const text = activeMessages[Math.floor(Math.random() * activeMessages.length)];
     const lines = isImage ? [] : isIcon ? [icons[Math.floor(Math.random() * icons.length)]] : wrapText(text, maxTextWidth, fontSize);
     const imageSize = Math.round((width < 520 ? 64 : 82) + depth * (width < 520 ? 9 : 13));
     const blockHeight = isImage ? imageSize : lines.length * lineHeight;

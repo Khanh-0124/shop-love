@@ -6,7 +6,8 @@ const defaultUsers = [
         name: 'Default',
         musicUrl: '',
         musicSrc: '',
-        images: []
+        images: [],
+        messages: []
     }
 ];
 
@@ -27,6 +28,9 @@ const shareLinkContainer = document.getElementById('shareLinkContainer');
 const shareLink = document.getElementById('shareLink');
 const copyLinkButton = document.getElementById('copyLinkButton');
 const previewLink = document.getElementById('previewLink');
+const messageForm = document.getElementById('messageForm');
+const messageInput = document.getElementById('messageInput');
+const messageTags = document.getElementById('messageTags');
 
 let users = defaultUsers;
 let activeUserId = defaultUserId;
@@ -50,7 +54,8 @@ function readUsers() {
                 name: user.name || 'User',
                 musicUrl: user.musicUrl || '',
                 musicSrc: user.musicSrc || '',
-                images: Array.isArray(user.images) ? user.images : []
+                images: Array.isArray(user.images) ? user.images : [],
+                messages: Array.isArray(user.messages) ? user.messages : []
             }));
         }
     } catch (error) {
@@ -67,7 +72,8 @@ function normalizeUsers(rawUsers) {
         name: user.name || 'User',
         musicUrl: user.musicUrl || '',
         musicSrc: user.musicSrc || '',
-        images: Array.isArray(user.images) ? user.images : []
+        images: Array.isArray(user.images) ? user.images : [],
+        messages: Array.isArray(user.messages) ? user.messages : []
     }));
 }
 
@@ -192,10 +198,48 @@ function renderImages() {
     });
 }
 
+function renderUserMessages() {
+    const activeUser = getActiveUser();
+    if (!messageTags) return;
+
+    messageTags.innerHTML = '';
+
+    const activeMessages = activeUser.messages || [];
+
+    if (activeMessages.length === 0) {
+        messageTags.innerHTML = '<span style="font-size: 13px; color: rgba(255,255,255,0.4); font-style: italic;">Đang sử dụng danh sách câu chữ mặc định của hệ thống.</span>';
+        return;
+    }
+
+    activeMessages.forEach((msg, idx) => {
+        const tag = document.createElement('div');
+        tag.className = 'message-tag';
+
+        const textSpan = document.createElement('span');
+        textSpan.textContent = msg;
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.textContent = '×';
+        delBtn.title = 'Xóa câu này';
+        delBtn.addEventListener('click', async () => {
+            activeUser.messages.splice(idx, 1);
+            if (await saveUsers()) {
+                render();
+                setStatus('Đã xóa câu chữ: "' + msg + '"');
+            }
+        });
+
+        tag.append(textSpan, delBtn);
+        messageTags.appendChild(tag);
+    });
+}
+
 function render() {
     activeUserId = getActiveUser().id;
     renderUsers();
     renderImages();
+    renderUserMessages();
 }
 
 function makeUniqueUserId() {
@@ -251,7 +295,8 @@ userForm.addEventListener('submit', async (event) => {
         name,
         musicUrl: '',
         musicSrc: '',
-        images: []
+        images: [],
+        messages: []
     };
     users.push(user);
     activeUserId = user.id;
@@ -500,6 +545,32 @@ if (copyLinkButton) {
                 .catch(() => {
                     setStatus('Không thể tự copy. Hãy tự bôi đen link và copy nhé.');
                 });
+        }
+    });
+}
+
+// Gán sự kiện form thêm câu chữ rơi tùy chọn
+if (messageForm) {
+    messageForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const activeUser = getActiveUser();
+        const msgText = messageInput.value.trim();
+
+        if (!msgText) {
+            setStatus('Vui lòng nhập nội dung câu chữ trước.');
+            return;
+        }
+
+        if (!activeUser.messages) {
+            activeUser.messages = [];
+        }
+
+        activeUser.messages.push(msgText);
+        messageInput.value = '';
+
+        if (await saveUsers()) {
+            render();
+            setStatus('Đã thêm câu chữ mới thành công cho ' + activeUser.name + '.');
         }
     });
 }

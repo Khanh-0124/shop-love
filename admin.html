@@ -60,6 +60,15 @@
                     <span>Hoặc chọn file nhạc để phát chắc chắn</span>
                 </label>
 
+                <form class="music-form" id="messageForm">
+                    <label for="messageInput">Câu chữ rơi tùy chọn của user (nếu không nhập sẽ dùng mặc định)</label>
+                    <div class="music-form__row">
+                        <input id="messageInput" type="text" placeholder="Ví dụ: Thương em nhiều lắm">
+                        <button type="submit">Thêm chữ</button>
+                    </div>
+                </form>
+                <div class="message-tags" id="messageTags"></div>
+
                 <label class="upload-zone" for="imageInput">
                     <input id="imageInput" type="file" accept="image/*" multiple>
                     <span>Chọn ảnh để thêm vào user này</span>
