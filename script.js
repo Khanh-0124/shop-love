@@ -760,3 +760,22 @@ canvas.addEventListener('pointerup', handlePointerEnd);
 canvas.addEventListener('pointercancel', handlePointerEnd);
 canvas.addEventListener('pointerleave', handlePointerEnd);
 requestAnimationFrame(animate);
+
+// Bộ lắng nghe sự kiện nút mở màn hình chào (Vượt qua Autoplay Policy)
+const startPlayButton = document.getElementById('startPlayButton');
+const welcomeOverlay = document.getElementById('welcomeOverlay');
+
+if (startPlayButton && welcomeOverlay) {
+    startPlayButton.addEventListener('click', () => {
+        // 1. Phát nhạc nền
+        playUserMusic();
+        
+        // 2. Mờ dần lớp phủ Welcome Screen
+        welcomeOverlay.classList.add('fade-out');
+        
+        // 3. Xoá hoàn toàn khỏi DOM sau khi hiệu ứng mờ kết thúc (800ms)
+        setTimeout(() => {
+            welcomeOverlay.remove();
+        }, 800);
+    });
+}
