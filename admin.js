@@ -267,10 +267,10 @@ audioInput.addEventListener('change', async () => {
         return;
     }
 
-    setStatus('Đang tải tệp nhạc lên Firebase Storage...');
+    setStatus('Đang tải tệp nhạc lên Cloudinary...');
 
     try {
-        const downloadUrl = await uploadAudioToStorage(file, activeUser.id);
+        const downloadUrl = await uploadToCloudinary(file, 'video');
         if (downloadUrl) {
             activeUser.musicSrc = downloadUrl;
             activeUser.musicUrl = '';
@@ -282,7 +282,7 @@ audioInput.addEventListener('change', async () => {
             }
         }
     } catch (error) {
-        setStatus('Không thể tải file nhạc lên Firebase. Vui lòng kiểm tra lại cấu hình Firebase.');
+        setStatus('Không thể tải file nhạc lên Cloudinary. Vui lòng kiểm tra cấu hình Cloudinary.');
     }
 
     audioInput.value = '';
@@ -296,14 +296,14 @@ imageInput.addEventListener('change', async () => {
         return;
     }
 
-    setStatus('Đang tải ' + files.length + ' ảnh lên Firebase Storage...');
+    setStatus('Đang tải ' + files.length + ' ảnh lên Cloudinary...');
 
     try {
-        // 1. Resize ảnh thành các Blob để tiết kiệm băng thông và dung lượng Storage
+        // 1. Resize ảnh thành các Blob để tiết kiệm băng thông và dung lượng Cloudinary
         const blobs = await Promise.all(files.map((file) => resizeImageToBlob(file)));
 
-        // 2. Upload đồng thời các ảnh lên Firebase Storage
-        const uploadPromises = blobs.map(blob => uploadImageToStorage(blob, activeUser.id));
+        // 2. Upload đồng thời các ảnh lên Cloudinary
+        const uploadPromises = blobs.map(blob => uploadToCloudinary(blob, 'image'));
         const downloadUrls = await Promise.all(uploadPromises);
 
         // 3. Lưu link download URL vào danh sách ảnh của user
@@ -316,11 +316,11 @@ imageInput.addEventListener('change', async () => {
         activeUser.images.push(...newImages);
         if (saveUsers()) {
             render();
-            setStatus('Đã thêm thành công ' + newImages.length + ' ảnh vào Firebase Storage cho ' + activeUser.name + '.');
+            setStatus('Đã thêm thành công ' + newImages.length + ' ảnh lên Cloudinary cho ' + activeUser.name + '.');
         }
     } catch (error) {
         console.error(error);
-        setStatus('Lỗi tải ảnh lên Firebase. Vui lòng kiểm tra cấu hình Firebase.');
+        setStatus('Lỗi tải ảnh lên Cloudinary. Vui lòng kiểm tra cấu hình Cloudinary.');
     }
 
     imageInput.value = '';

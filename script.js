@@ -654,12 +654,12 @@ function animate(currentTime) {
 }
 
 /**
- * Hàm upload ảnh mới lên Firebase Storage và thêm vào danh sách ảnh của activeUser
+ * Hàm upload ảnh mới lên Cloudinary và thêm vào danh sách ảnh của activeUser
  * @param {File} file - File ảnh được upload từ input
  */
 async function addNewImageToActiveUser(file) {
     try {
-        const downloadURL = await uploadImageToStorage(file, activeUser.id);
+        const downloadURL = await uploadToCloudinary(file, 'image');
         if (!downloadURL) return;
 
         // Thêm vào danh sách ảnh của user hiện tại
