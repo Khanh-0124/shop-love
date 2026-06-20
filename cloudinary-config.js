@@ -22,9 +22,27 @@ async function uploadToCloudinary(fileOrBlob, resourceType = 'auto') {
 
     const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`;
     const formData = new FormData();
+    let uploadData = fileOrBlob;
+
+    // Nếu là URL trực tuyến, thử fetch trước thành Blob để tránh cấu hình chặn upload URL trên Cloudinary
+    if (typeof fileOrBlob === 'string' && (fileOrBlob.startsWith('http://') || fileOrBlob.startsWith('https://'))) {
+        try {
+            console.log("Thử tải tệp về trình duyệt khách...");
+            const fetchRes = await fetch(fileOrBlob);
+            if (fetchRes.ok) {
+                const blob = await fetchRes.blob();
+                const name = fileOrBlob.split('/').pop().split('?')[0] || 'remote_file';
+                blob.name = name;
+                uploadData = blob;
+                console.log("Tải tệp thành công dưới dạng Blob.");
+            }
+        } catch (fetchError) {
+            console.warn("Không thể fetch trực tiếp tệp về client (CORS). Sẽ để Cloudinary tự tải tệp từ xa từ máy chủ của họ.", fetchError);
+        }
+    }
     
     // Gán file và cấu hình unsigned upload preset
-    formData.append('file', fileOrBlob);
+    formData.append('file', uploadData);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     
     // Cloudinary yêu cầu tệp âm thanh phải chỉ định resource_type là 'video' hoặc 'auto'

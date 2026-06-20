@@ -278,7 +278,7 @@ musicForm.addEventListener('submit', async (event) => {
         }
     } catch (error) {
         console.error(error);
-        setStatus('Lỗi tải tệp nhạc từ xa lên Cloudinary. Hãy kiểm tra lại link nhạc.');
+        setStatus('Lỗi tải nhạc: ' + error.message);
     }
 });
 
@@ -313,7 +313,7 @@ imageUrlForm.addEventListener('submit', async (event) => {
         }
     } catch (error) {
         console.error(error);
-        setStatus('Lỗi tải ảnh từ xa lên Cloudinary. Hãy kiểm tra lại link ảnh.');
+        setStatus('Lỗi tải ảnh: ' + error.message);
     }
 });
 
