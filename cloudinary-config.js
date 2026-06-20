@@ -1,6 +1,6 @@
 // Cấu hình Cloudinary của bạn (Hãy thay đổi các thông số dưới đây bằng thông số từ tài khoản Cloudinary của bạn)
-const CLOUDINARY_CLOUD_NAME = "YOUR_CLOUD_NAME";
-const CLOUDINARY_UPLOAD_PRESET = "YOUR_UNSIGNED_UPLOAD_PRESET";
+const CLOUDINARY_CLOUD_NAME = "djo9fy9am";
+const CLOUDINARY_UPLOAD_PRESET = "djo9fy9am";
 
 /**
  * Hàm upload file (ảnh hoặc nhạc) lên Cloudinary bằng REST API
