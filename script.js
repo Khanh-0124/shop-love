@@ -1,7 +1,7 @@
 const canvas = document.getElementById('loveRainCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 
-const messages = ['Love you more', 'Mãi bên nhau nhé', 'I love you', 'Thương', 'Bình yên là đây', 'Chỉ cần nhau thôi', 'Forever', 'My everything', 'Now and forever'];
+const messages = ['Love you more', 'Mãi bên nhau nhé', 'I love you', 'Thương', 'Chỉ thương một người', 'Chỉ cần nhau thôi', 'Forever', 'My everything', 'Now and forever'];
 const icons = ['❤️', '✨💍', '💗', '💕', '🌹', '✨💍'];
 const starColors = ['#ffffff', '#fff5fb', '#ffb6e6', '#ff7ed1', '#ff4dbe'];
 const rainItems = [];
