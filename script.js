@@ -68,11 +68,23 @@ function normalizeUserId(value) {
         .replace(/^-+|-+$/g, '') || 'user';
 }
 
+// Giới hạn thời gian chờ của một Promise để tránh bị treo trang khi chạy file cục bộ (file://)
+function promiseWithTimeout(promise, ms) {
+    let timeout = new Promise((resolve, reject) => {
+        let id = setTimeout(() => {
+            clearTimeout(id);
+            reject(new Error("Timeout kết nối Firebase Database sau " + ms + "ms"));
+        }, ms);
+    });
+    return Promise.race([promise, timeout]);
+}
+
 async function readGalleryUsersAsync() {
     if (typeof firebase !== 'undefined') {
         try {
             console.log("Đang tải dữ liệu từ Firebase Realtime Database...");
-            const snapshot = await firebase.database().ref('galleryUsers').once('value');
+            // Giới hạn thời gian chờ tối đa 2 giây
+            const snapshot = await promiseWithTimeout(firebase.database().ref('galleryUsers').once('value'), 2000);
             const data = snapshot.val();
             if (Array.isArray(data) && data.length > 0) {
                 // Lưu một bản sao lưu dự phòng vào localStorage
@@ -86,7 +98,7 @@ async function readGalleryUsersAsync() {
                 }));
             }
         } catch (error) {
-            console.warn("Không thể tải từ Firebase Realtime Database, sử dụng dữ liệu dự phòng.", error);
+            console.warn("Không thể tải từ Firebase Realtime Database (treo hoặc lỗi), sử dụng dữ liệu dự phòng.", error);
         }
     }
 
