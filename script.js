@@ -68,22 +68,34 @@ function normalizeUserId(value) {
         .replace(/^-+|-+$/g, '') || 'user';
 }
 
-function readGalleryUsers() {
+async function readGalleryUsersAsync() {
     try {
-        const savedUsers = JSON.parse(localStorage.getItem(galleryStorageKey));
-
-        if (Array.isArray(savedUsers) && savedUsers.length > 0) {
-            return savedUsers.map((user) => ({
-                id: user.id || normalizeUserId(user.name || 'user'),
-                name: user.name || 'User',
-                musicUrl: user.musicUrl || '',
-                musicSrc: user.musicSrc || '',
-                images: Array.isArray(user.images) ? user.images : []
-            }));
+        console.log("Đang tải dữ liệu từ data.json...");
+        const response = await fetch('data.json?v=' + Date.now());
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+                // Lưu một bản sao lưu dự phòng vào localStorage
+                localStorage.setItem(galleryStorageKey, JSON.stringify(data));
+                return data.map((user) => ({
+                    id: user.id || normalizeUserId(user.name || 'user'),
+                    name: user.name || 'User',
+                    musicUrl: user.musicUrl || '',
+                    musicSrc: user.musicSrc || '',
+                    images: Array.isArray(user.images) ? user.images : []
+                }));
+            }
         }
     } catch (error) {
-        localStorage.removeItem(galleryStorageKey);
+        console.warn("Không thể fetch data.json, sử dụng dữ liệu dự phòng từ localStorage.", error);
     }
+
+    try {
+        const savedUsers = JSON.parse(localStorage.getItem(galleryStorageKey));
+        if (Array.isArray(savedUsers) && savedUsers.length > 0) {
+            return savedUsers;
+        }
+    } catch (e) {}
 
     return defaultUsers;
 }
@@ -170,8 +182,8 @@ function startUserMusic(musicUrl) {
     playUserMusic();
 }
 
-function initGalleryUsers() {
-    galleryUsers = readGalleryUsers();
+async function initGalleryUsers() {
+    galleryUsers = await readGalleryUsersAsync();
     activeUser = galleryUsers.find((user) => user.id === getUserIdFromUrl()) || galleryUsers[0] || defaultUsers[0];
     localStorage.setItem('loveRainActiveUser', activeUser.id);
     loadActiveUserImages();

@@ -23,9 +23,10 @@ const adminStatus = document.getElementById('adminStatus');
 const imageGrid = document.getElementById('imageGrid');
 const imageUrlForm = document.getElementById('imageUrlForm');
 const imageUrlInput = document.getElementById('imageUrlInput');
+const exportDataButton = document.getElementById('exportDataButton');
 
-let users = readUsers();
-let activeUserId = localStorage.getItem('loveRainActiveUser') || users[0].id;
+let users = defaultUsers;
+let activeUserId = defaultUserId;
 
 function normalizeUserId(value) {
     return value
@@ -384,4 +385,53 @@ imageInput.addEventListener('change', async () => {
     imageInput.value = '';
 });
 
-render();
+// Đọc dữ liệu từ file data.json bất đồng bộ, fallback về localStorage
+async function readUsersAsync() {
+    try {
+        console.log("Đang tải cấu hình từ data.json...");
+        // Thêm tham số truy vấn timestamp để tránh trình duyệt cache file JSON cũ
+        const response = await fetch('data.json?v=' + Date.now());
+        if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+                // Lưu bản sao dự phòng
+                localStorage.setItem(galleryStorageKey, JSON.stringify(data));
+                return data.map((user) => ({
+                    id: user.id || normalizeUserId(user.name || 'user'),
+                    name: user.name || 'User',
+                    musicUrl: user.musicUrl || '',
+                    musicSrc: user.musicSrc || '',
+                    images: Array.isArray(user.images) ? user.images : []
+                }));
+            }
+        }
+    } catch (error) {
+        console.warn("Không thể tải data.json (có thể chạy offline hoặc file chưa có). Sử dụng dữ liệu dự phòng.", error);
+    }
+    return readUsers();
+}
+
+// Khởi tạo trang quản trị
+async function initAdmin() {
+    users = await readUsersAsync();
+    activeUserId = localStorage.getItem('loveRainActiveUser') || users[0].id;
+    render();
+}
+
+// Sự kiện click nút Xuất file cấu hình data.json
+exportDataButton.addEventListener('click', () => {
+    try {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(users, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", "data.json");
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        setStatus("Đã tải xuống file data.json mới. Hãy ghi đè file này vào dự án của bạn và push lên Git!");
+    } catch (error) {
+        setStatus("Lỗi khi xuất file cấu hình.");
+    }
+});
+
+initAdmin();
