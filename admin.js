@@ -21,6 +21,8 @@ const audioInput = document.getElementById('audioInput');
 const imageInput = document.getElementById('imageInput');
 const adminStatus = document.getElementById('adminStatus');
 const imageGrid = document.getElementById('imageGrid');
+const imageUrlForm = document.getElementById('imageUrlForm');
+const imageUrlInput = document.getElementById('imageUrlInput');
 
 let users = readUsers();
 let activeUserId = localStorage.getItem('loveRainActiveUser') || users[0].id;
@@ -235,10 +237,20 @@ deleteUserButton.addEventListener('click', () => {
     }
 });
 
-musicForm.addEventListener('submit', (event) => {
+musicForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const activeUser = getActiveUser();
     const musicUrl = musicUrlInput.value.trim();
+
+    if (!musicUrl) {
+        activeUser.musicUrl = '';
+        activeUser.musicSrc = '';
+        if (saveUsers()) {
+            render();
+            setStatus('Đã xóa nhạc.');
+        }
+        return;
+    }
 
     if (isTikTokUrl(musicUrl)) {
         setStatus('Link TikTok là trang video, không phải direct audio URL. Hãy dùng link .mp3/.m4a/.wav hoặc upload file nhạc.');
@@ -250,12 +262,58 @@ musicForm.addEventListener('submit', (event) => {
         return;
     }
 
-    activeUser.musicUrl = musicUrl;
-    activeUser.musicSrc = '';
+    setStatus('Đang tải nhạc từ URL lên Cloudinary...');
 
-    if (saveUsers()) {
-        render();
-        setStatus(activeUser.musicUrl ? 'Đã lưu direct audio URL cho ' + activeUser.name + '.' : 'Đã xóa link nhạc.');
+    try {
+        const downloadUrl = await uploadToCloudinary(musicUrl, 'video');
+        if (downloadUrl) {
+            activeUser.musicSrc = downloadUrl;
+            activeUser.musicUrl = '';
+            musicUrlInput.value = '';
+
+            if (saveUsers()) {
+                render();
+                setStatus('Đã lưu nhạc từ URL lên Cloudinary thành công cho ' + activeUser.name + '.');
+            }
+        }
+    } catch (error) {
+        console.error(error);
+        setStatus('Lỗi tải tệp nhạc từ xa lên Cloudinary. Hãy kiểm tra lại link nhạc.');
+    }
+});
+
+imageUrlForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const activeUser = getActiveUser();
+    const imageUrl = imageUrlInput.value.trim();
+
+    if (!imageUrl) {
+        setStatus('Nhập URL ảnh trước đã.');
+        return;
+    }
+
+    setStatus('Đang tải ảnh từ URL lên Cloudinary...');
+
+    try {
+        const downloadUrl = await uploadToCloudinary(imageUrl, 'image');
+        if (downloadUrl) {
+            const newImage = {
+                id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+                name: imageUrl.split('/').pop().split('?')[0] || 'remote-image.jpg',
+                src: downloadUrl
+            };
+
+            activeUser.images.push(newImage);
+            imageUrlInput.value = '';
+
+            if (saveUsers()) {
+                render();
+                setStatus('Đã lưu ảnh từ URL lên Cloudinary thành công cho ' + activeUser.name + '.');
+            }
+        }
+    } catch (error) {
+        console.error(error);
+        setStatus('Lỗi tải ảnh từ xa lên Cloudinary. Hãy kiểm tra lại link ảnh.');
     }
 });
 

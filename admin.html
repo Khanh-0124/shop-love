@@ -59,6 +59,14 @@
                     <span>Chọn ảnh để thêm vào user này</span>
                 </label>
 
+                <form class="music-form" id="imageUrlForm">
+                    <label for="imageUrlInput">Hoặc dán URL ảnh để tải lên Cloudinary</label>
+                    <div class="music-form__row">
+                        <input id="imageUrlInput" type="url" inputmode="url" placeholder="https://.../image.jpg">
+                        <button type="submit">Tải ảnh</button>
+                    </div>
+                </form>
+
                 <p class="admin-status" id="adminStatus" aria-live="polite"></p>
                 <div class="image-grid" id="imageGrid"></div>
             </section>
