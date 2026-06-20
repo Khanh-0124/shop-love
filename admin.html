@@ -38,10 +38,7 @@
                         <p class="eyebrow">Bộ ảnh</p>
                         <h2 id="activeUserTitle">Default</h2>
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="preview-link" id="exportDataButton" type="button" style="background: rgba(255, 77, 190, 0.15); border-color: rgba(255, 77, 190, 0.4);">Xuất file data.json</button>
-                        <button class="danger-button" id="deleteUserButton" type="button">Xóa user</button>
-                    </div>
+                    <button class="danger-button" id="deleteUserButton" type="button">Xóa user</button>
                 </div>
 
                 <form class="music-form" id="musicForm">
@@ -78,6 +75,11 @@
 
     <!-- Script cấu hình Cloudinary -->
     <script src="cloudinary-config.js"></script>
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
     <script src="admin.js"></script>
 </body>
 </html>

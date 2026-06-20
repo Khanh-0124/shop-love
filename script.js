@@ -69,11 +69,11 @@ function normalizeUserId(value) {
 }
 
 async function readGalleryUsersAsync() {
-    try {
-        console.log("Đang tải dữ liệu từ data.json...");
-        const response = await fetch('data.json?v=' + Date.now());
-        if (response.ok) {
-            const data = await response.json();
+    if (typeof firebase !== 'undefined') {
+        try {
+            console.log("Đang tải dữ liệu từ Firebase Realtime Database...");
+            const snapshot = await firebase.database().ref('galleryUsers').once('value');
+            const data = snapshot.val();
             if (Array.isArray(data) && data.length > 0) {
                 // Lưu một bản sao lưu dự phòng vào localStorage
                 localStorage.setItem(galleryStorageKey, JSON.stringify(data));
@@ -85,9 +85,9 @@ async function readGalleryUsersAsync() {
                     images: Array.isArray(user.images) ? user.images : []
                 }));
             }
+        } catch (error) {
+            console.warn("Không thể tải từ Firebase Realtime Database, sử dụng dữ liệu dự phòng.", error);
         }
-    } catch (error) {
-        console.warn("Không thể fetch data.json, sử dụng dữ liệu dự phòng từ localStorage.", error);
     }
 
     try {

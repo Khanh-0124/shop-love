@@ -23,7 +23,6 @@ const adminStatus = document.getElementById('adminStatus');
 const imageGrid = document.getElementById('imageGrid');
 const imageUrlForm = document.getElementById('imageUrlForm');
 const imageUrlInput = document.getElementById('imageUrlInput');
-const exportDataButton = document.getElementById('exportDataButton');
 
 let users = defaultUsers;
 let activeUserId = defaultUserId;
@@ -59,9 +58,21 @@ function readUsers() {
 function saveUsers() {
     try {
         localStorage.setItem(galleryStorageKey, JSON.stringify(users));
+        
+        // Đồng bộ dữ liệu trực tuyến lên Firebase Realtime Database
+        if (typeof firebase !== 'undefined') {
+            firebase.database().ref('galleryUsers').set(users)
+                .then(() => {
+                    console.log("Đã đồng bộ lên Firebase Database.");
+                })
+                .catch((err) => {
+                    console.error("Lỗi đồng bộ Firebase Realtime Database:", err);
+                    setStatus('Lỗi đồng bộ Firebase. Bạn đã bật Rules Test Mode chưa?');
+                });
+        }
         return true;
     } catch (error) {
-        setStatus('Bộ nhớ trình duyệt đầy. Xóa bớt ảnh hoặc chọn ảnh nhẹ hơn.');
+        setStatus('Lỗi lưu dữ liệu: ' + error.message);
         return false;
     }
 }
@@ -385,16 +396,15 @@ imageInput.addEventListener('change', async () => {
     imageInput.value = '';
 });
 
-// Đọc dữ liệu từ file data.json bất đồng bộ, fallback về localStorage
+// Đọc dữ liệu từ Firebase Realtime Database bất đồng bộ, fallback về localStorage
 async function readUsersAsync() {
-    try {
-        console.log("Đang tải cấu hình từ data.json...");
-        // Thêm tham số truy vấn timestamp để tránh trình duyệt cache file JSON cũ
-        const response = await fetch('data.json?v=' + Date.now());
-        if (response.ok) {
-            const data = await response.json();
+    if (typeof firebase !== 'undefined') {
+        try {
+            console.log("Đang tải cấu hình từ Firebase Realtime Database...");
+            const snapshot = await firebase.database().ref('galleryUsers').once('value');
+            const data = snapshot.val();
             if (Array.isArray(data) && data.length > 0) {
-                // Lưu bản sao dự phòng
+                // Lưu bản sao dự phòng ở localStorage
                 localStorage.setItem(galleryStorageKey, JSON.stringify(data));
                 return data.map((user) => ({
                     id: user.id || normalizeUserId(user.name || 'user'),
@@ -404,9 +414,9 @@ async function readUsersAsync() {
                     images: Array.isArray(user.images) ? user.images : []
                 }));
             }
+        } catch (error) {
+            console.warn("Lỗi khi tải dữ liệu từ Firebase Database, chuyển sang sử dụng local.", error);
         }
-    } catch (error) {
-        console.warn("Không thể tải data.json (có thể chạy offline hoặc file chưa có). Sử dụng dữ liệu dự phòng.", error);
     }
     return readUsers();
 }
@@ -417,21 +427,5 @@ async function initAdmin() {
     activeUserId = localStorage.getItem('loveRainActiveUser') || users[0].id;
     render();
 }
-
-// Sự kiện click nút Xuất file cấu hình data.json
-exportDataButton.addEventListener('click', () => {
-    try {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(users, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute("href", dataStr);
-        downloadAnchor.setAttribute("download", "data.json");
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
-        setStatus("Đã tải xuống file data.json mới. Hãy ghi đè file này vào dự án của bạn và push lên Git!");
-    } catch (error) {
-        setStatus("Lỗi khi xuất file cấu hình.");
-    }
-});
 
 initAdmin();
