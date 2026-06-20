@@ -9,6 +9,7 @@ const stars = [];
 const imageCards = [];
 const galleryStorageKey = 'loveRainAdminGallery';
 const defaultUserId = 'default';
+const allUsersId = '__all';
 const defaultUsers = [
     {
         id: defaultUserId,
@@ -118,7 +119,31 @@ async function readGalleryUsersAsync() {
 
 function getUserIdFromUrl() {
     const params = new URLSearchParams(window.location.search);
-    return params.get('user') || localStorage.getItem('loveRainActiveUser') || defaultUserId;
+    return params.get('user') || '';
+}
+
+function createCombinedUser(users) {
+    const sharedUsers = users.filter((user) => user.id !== defaultUserId && user.images.length > 0);
+    const sourceUsers = sharedUsers.length > 0 ? sharedUsers : users;
+    const musicUser = sourceUsers.find((user) => user.musicSrc || user.musicUrl);
+
+    return {
+        id: allUsersId,
+        name: 'All',
+        musicUrl: musicUser ? musicUser.musicUrl : '',
+        musicSrc: musicUser ? musicUser.musicSrc : '',
+        images: sourceUsers.flatMap((user) => user.images)
+    };
+}
+
+function pickActiveUser(users) {
+    const requestedUserId = getUserIdFromUrl();
+
+    if (requestedUserId) {
+        return users.find((user) => user.id === requestedUserId) || createCombinedUser(users);
+    }
+
+    return createCombinedUser(users);
 }
 
 function loadImage(src) {
@@ -200,9 +225,25 @@ function startUserMusic(musicUrl) {
 
 async function initGalleryUsers() {
     galleryUsers = await readGalleryUsersAsync();
-    activeUser = galleryUsers.find((user) => user.id === getUserIdFromUrl()) || galleryUsers[0] || defaultUsers[0];
-    localStorage.setItem('loveRainActiveUser', activeUser.id);
+    activeUser = pickActiveUser(galleryUsers);
     loadActiveUserImages();
+
+    if (typeof firebase !== 'undefined') {
+        firebase.database().ref('galleryUsers').on('value', (snapshot) => {
+            const remoteUsers = normalizeUsers(snapshot.val());
+
+            if (remoteUsers.length === 0) {
+                return;
+            }
+
+            galleryUsers = remoteUsers;
+            localStorage.setItem(galleryStorageKey, JSON.stringify(remoteUsers));
+            activeUser = pickActiveUser(galleryUsers);
+            loadActiveUserImages();
+        }, (error) => {
+            console.warn('Không thể lắng nghe Firebase Realtime Database.', error);
+        });
+    }
 }
 
 function createImageCard(index) {

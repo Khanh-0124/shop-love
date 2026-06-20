@@ -26,6 +26,7 @@ const imageUrlInput = document.getElementById('imageUrlInput');
 
 let users = defaultUsers;
 let activeUserId = defaultUserId;
+let isSavingUsers = false;
 
 function normalizeUserId(value) {
     return value
@@ -68,6 +69,7 @@ function normalizeUsers(rawUsers) {
 
 async function saveUsers() {
     try {
+        isSavingUsers = true;
         localStorage.setItem(galleryStorageKey, JSON.stringify(users));
 
         if (typeof firebase !== 'undefined') {
@@ -79,6 +81,8 @@ async function saveUsers() {
     } catch (error) {
         setStatus('Lỗi lưu dữ liệu: ' + error.message);
         return false;
+    } finally {
+        isSavingUsers = false;
     }
 }
 
@@ -436,6 +440,32 @@ async function initAdmin() {
     users = await readUsersAsync();
     activeUserId = localStorage.getItem('loveRainActiveUser') || users[0].id;
     render();
+
+    if (typeof firebase !== 'undefined') {
+        firebase.database().ref('galleryUsers').on('value', (snapshot) => {
+            if (isSavingUsers) {
+                return;
+            }
+
+            const remoteUsers = normalizeUsers(snapshot.val());
+
+            if (remoteUsers.length === 0) {
+                return;
+            }
+
+            users = remoteUsers;
+            localStorage.setItem(galleryStorageKey, JSON.stringify(remoteUsers));
+
+            if (!users.some((user) => user.id === activeUserId)) {
+                activeUserId = users[0].id;
+            }
+
+            render();
+            setStatus('Đã cập nhật dữ liệu mới từ Firebase.');
+        }, (error) => {
+            setStatus('Không thể nghe dữ liệu Firebase: ' + error.message);
+        });
+    }
 }
 
 initAdmin();
