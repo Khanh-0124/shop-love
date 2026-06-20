@@ -23,6 +23,10 @@ const adminStatus = document.getElementById('adminStatus');
 const imageGrid = document.getElementById('imageGrid');
 const imageUrlForm = document.getElementById('imageUrlForm');
 const imageUrlInput = document.getElementById('imageUrlInput');
+const shareLinkContainer = document.getElementById('shareLinkContainer');
+const shareLink = document.getElementById('shareLink');
+const copyLinkButton = document.getElementById('copyLinkButton');
+const previewLink = document.getElementById('previewLink');
 
 let users = defaultUsers;
 let activeUserId = defaultUserId;
@@ -146,6 +150,27 @@ function renderImages() {
     musicUrlInput.value = activeUser.musicUrl || '';
     deleteUserButton.disabled = activeUser.id === defaultUserId;
 
+    // Hiển thị Link chia sẻ của User
+    const baseUrl = window.location.href.split('/').slice(0, -1).join('/') + '/index.html';
+    if (activeUser.id !== defaultUserId) {
+        // Tạo link trỏ đến index.html kèm theo query ?user=id
+        const userUrl = `${baseUrl}?user=${activeUser.id}`;
+        shareLink.href = userUrl;
+        shareLink.textContent = userUrl;
+        shareLinkContainer.style.display = 'flex';
+    } else {
+        shareLinkContainer.style.display = 'none';
+    }
+
+    // Cập nhật link Xem màn hình động
+    if (previewLink) {
+        if (activeUser.id !== defaultUserId) {
+            previewLink.href = `${baseUrl}?user=${activeUser.id}`;
+        } else {
+            previewLink.href = baseUrl;
+        }
+    }
+
     activeUser.images.forEach((image, index) => {
         const card = document.createElement('article');
         const preview = document.createElement('img');
@@ -173,16 +198,12 @@ function render() {
     renderImages();
 }
 
-function makeUniqueUserId(name) {
-    const baseId = normalizeUserId(name);
-    let nextId = baseId;
-    let count = 2;
-
-    while (users.some((user) => user.id === nextId)) {
-        nextId = baseId + '-' + count;
-        count++;
-    }
-
+function makeUniqueUserId() {
+    let nextId;
+    do {
+        // Sinh ID ngẫu nhiên dạng u-xxxxxxx để tránh trùng lặp và tăng tính bảo mật cho link
+        nextId = 'u-' + Math.random().toString(36).substring(2, 9);
+    } while (users.some((user) => user.id === nextId));
     return nextId;
 }
 
@@ -466,6 +487,21 @@ async function initAdmin() {
             setStatus('Không thể nghe dữ liệu Firebase: ' + error.message);
         });
     }
+}
+
+// Gán sự kiện Copy Link chia sẻ
+if (copyLinkButton) {
+    copyLinkButton.addEventListener('click', () => {
+        if (shareLink && shareLink.textContent) {
+            navigator.clipboard.writeText(shareLink.textContent)
+                .then(() => {
+                    setStatus('Đã sao chép link chia sẻ vào bộ nhớ tạm!');
+                })
+                .catch(() => {
+                    setStatus('Không thể tự copy. Hãy tự bôi đen link và copy nhé.');
+                });
+        }
+    });
 }
 
 initAdmin();

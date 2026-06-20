@@ -1,7 +1,7 @@
 const canvas = document.getElementById('loveRainCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 
-const messages = ['Love you more', 'Mãi bên nhau nhé', 'I love you', 'Thương', 'Chỉ thương một người', 'Chỉ cần nhau thôi', 'Forever', 'My everything', 'Now and forever'];
+const messages = ['Love you more', 'Mãi bên nhau nha', 'I love you', 'Thương', 'Chỉ thương một người', 'Love you to the moon', 'Forever', 'My everything', 'Now and forever'];
 const icons = ['❤️', '✨💍', '💗', '💕', '🌹', '✨💍'];
 const starColors = ['#ffffff', '#fff5fb', '#ffb6e6', '#ff7ed1', '#ff4dbe'];
 const rainItems = [];
@@ -140,10 +140,14 @@ function pickActiveUser(users) {
     const requestedUserId = getUserIdFromUrl();
 
     if (requestedUserId) {
-        return users.find((user) => user.id === requestedUserId) || createCombinedUser(users);
+        const foundUser = users.find((user) => user.id === requestedUserId);
+        if (foundUser) {
+            return foundUser;
+        }
     }
 
-    return createCombinedUser(users);
+    // Fallback về user Default thay vì gộp chung tất cả các user khác
+    return users.find((user) => user.id === defaultUserId) || defaultUsers[0];
 }
 
 function loadImage(src) {
