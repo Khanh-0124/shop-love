@@ -653,6 +653,35 @@ function animate(currentTime) {
     requestAnimationFrame(animate);
 }
 
+/**
+ * Hàm upload ảnh mới lên Firebase Storage và thêm vào danh sách ảnh của activeUser
+ * @param {File} file - File ảnh được upload từ input
+ */
+async function addNewImageToActiveUser(file) {
+    try {
+        const downloadURL = await uploadImageToStorage(file, activeUser.id);
+        if (!downloadURL) return;
+
+        // Thêm vào danh sách ảnh của user hiện tại
+        activeUser.images.push({ src: downloadURL });
+
+        // Cập nhật lại danh sách gallery trong localStorage
+        const userIndex = galleryUsers.findIndex(u => u.id === activeUser.id);
+        if (userIndex !== -1) {
+            galleryUsers[userIndex] = activeUser;
+        } else {
+            galleryUsers.push(activeUser);
+        }
+        localStorage.setItem(galleryStorageKey, JSON.stringify(galleryUsers));
+
+        // Load lại ảnh và cập nhật UI
+        await loadActiveUserImages();
+        console.log("Đã cập nhật ảnh thành công vào giao diện!");
+    } catch (error) {
+        console.error("Lỗi khi thêm ảnh mới:", error);
+    }
+}
+
 resizeCanvas();
 initGalleryUsers();
 window.addEventListener('resize', resizeCanvas);

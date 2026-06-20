@@ -163,24 +163,27 @@ function makeUniqueUserId(name) {
     return nextId;
 }
 
-function resizeImage(file) {
+function resizeImageToBlob(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
             const image = new Image();
             image.onload = () => {
-                const maxSize = 720;
+                const maxSize = 1080;
                 const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
                 const canvas = document.createElement('canvas');
                 canvas.width = Math.max(1, Math.round(image.width * scale));
                 canvas.height = Math.max(1, Math.round(image.height * scale));
                 const imageCtx = canvas.getContext('2d');
                 imageCtx.drawImage(image, 0, 0, canvas.width, canvas.height);
-                resolve({
-                    id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-                    name: file.name,
-                    src: canvas.toDataURL('image/jpeg', 0.82)
-                });
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        blob.name = file.name;
+                        resolve(blob);
+                    } else {
+                        reject(new Error("Không thể chuyển đổi canvas thành Blob."));
+                    }
+                }, 'image/jpeg', 0.85);
             };
             image.onerror = reject;
             image.src = reader.result;
@@ -256,7 +259,7 @@ musicForm.addEventListener('submit', (event) => {
     }
 });
 
-audioInput.addEventListener('change', () => {
+audioInput.addEventListener('change', async () => {
     const file = audioInput.files && audioInput.files[0];
     const activeUser = getActiveUser();
 
@@ -264,24 +267,25 @@ audioInput.addEventListener('change', () => {
         return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-        activeUser.musicSrc = reader.result;
-        activeUser.musicUrl = '';
-        musicUrlInput.value = '';
+    setStatus('Đang tải tệp nhạc lên Firebase Storage...');
 
-        if (saveUsers()) {
-            render();
-            setStatus('Đã lưu file nhạc cho ' + activeUser.name + '.');
+    try {
+        const downloadUrl = await uploadAudioToStorage(file, activeUser.id);
+        if (downloadUrl) {
+            activeUser.musicSrc = downloadUrl;
+            activeUser.musicUrl = '';
+            musicUrlInput.value = '';
+
+            if (saveUsers()) {
+                render();
+                setStatus('Đã tải lên và lưu file nhạc thành công cho ' + activeUser.name + '.');
+            }
         }
+    } catch (error) {
+        setStatus('Không thể tải file nhạc lên Firebase. Vui lòng kiểm tra lại cấu hình Firebase.');
+    }
 
-        audioInput.value = '';
-    };
-    reader.onerror = () => {
-        setStatus('Không đọc được file nhạc, thử file khác nhé.');
-        audioInput.value = '';
-    };
-    reader.readAsDataURL(file);
+    audioInput.value = '';
 });
 
 imageInput.addEventListener('change', async () => {
@@ -292,17 +296,31 @@ imageInput.addEventListener('change', async () => {
         return;
     }
 
-    setStatus('Đang xử lý ' + files.length + ' ảnh...');
+    setStatus('Đang tải ' + files.length + ' ảnh lên Firebase Storage...');
 
     try {
-        const images = await Promise.all(files.map((file) => resizeImage(file)));
-        activeUser.images.push(...images);
+        // 1. Resize ảnh thành các Blob để tiết kiệm băng thông và dung lượng Storage
+        const blobs = await Promise.all(files.map((file) => resizeImageToBlob(file)));
+
+        // 2. Upload đồng thời các ảnh lên Firebase Storage
+        const uploadPromises = blobs.map(blob => uploadImageToStorage(blob, activeUser.id));
+        const downloadUrls = await Promise.all(uploadPromises);
+
+        // 3. Lưu link download URL vào danh sách ảnh của user
+        const newImages = downloadUrls.filter(Boolean).map((url, idx) => ({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2) + idx,
+            name: files[idx].name,
+            src: url
+        }));
+
+        activeUser.images.push(...newImages);
         if (saveUsers()) {
             render();
-            setStatus('Đã thêm ' + images.length + ' ảnh cho ' + activeUser.name + '.');
+            setStatus('Đã thêm thành công ' + newImages.length + ' ảnh vào Firebase Storage cho ' + activeUser.name + '.');
         }
     } catch (error) {
-        setStatus('Không đọc được một ảnh, thử file khác nhé.');
+        console.error(error);
+        setStatus('Lỗi tải ảnh lên Firebase. Vui lòng kiểm tra cấu hình Firebase.');
     }
 
     imageInput.value = '';
