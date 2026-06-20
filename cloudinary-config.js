@@ -20,7 +20,7 @@ async function uploadToCloudinary(fileOrBlob, resourceType = 'auto') {
         return null;
     }
 
-    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`;
+    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
     const formData = new FormData();
     let uploadData = fileOrBlob;
 
@@ -45,9 +45,6 @@ async function uploadToCloudinary(fileOrBlob, resourceType = 'auto') {
     formData.append('file', uploadData);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     
-    // Cloudinary yêu cầu tệp âm thanh phải chỉ định resource_type là 'video' hoặc 'auto'
-    formData.append('resource_type', resourceType);
-
     try {
         console.log(`Đang tải tệp lên Cloudinary (${resourceType})...`);
         const response = await fetch(url, {

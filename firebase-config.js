@@ -1,6 +1,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSyDSjtBOwm9-ANnIKQLXaX6IV3IFkepTMXE",
     authDomain: "flutter-map-app-5b290.firebaseapp.com",
+    databaseURL: "https://flutter-map-app-5b290-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "flutter-map-app-5b290",
     storageBucket: "flutter-map-app-5b290.firebasestorage.app",
     messagingSenderId: "219117943266",

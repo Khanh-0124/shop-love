@@ -68,6 +68,17 @@ function normalizeUserId(value) {
         .replace(/^-+|-+$/g, '') || 'user';
 }
 
+function normalizeUsers(rawUsers) {
+    const sourceUsers = Array.isArray(rawUsers) ? rawUsers : Object.values(rawUsers || {});
+    return sourceUsers.map((user) => ({
+        id: user.id || normalizeUserId(user.name || 'user'),
+        name: user.name || 'User',
+        musicUrl: user.musicUrl || '',
+        musicSrc: user.musicSrc || '',
+        images: Array.isArray(user.images) ? user.images : []
+    }));
+}
+
 // Giới hạn thời gian chờ của một Promise để tránh bị treo trang khi chạy file cục bộ (file://)
 function promiseWithTimeout(promise, ms) {
     let timeout = new Promise((resolve, reject) => {
@@ -83,19 +94,12 @@ async function readGalleryUsersAsync() {
     if (typeof firebase !== 'undefined') {
         try {
             console.log("Đang tải dữ liệu từ Firebase Realtime Database...");
-            // Giới hạn thời gian chờ tối đa 2 giây
-            const snapshot = await promiseWithTimeout(firebase.database().ref('galleryUsers').once('value'), 2000);
+            const snapshot = await promiseWithTimeout(firebase.database().ref('galleryUsers').once('value'), 6000);
             const data = snapshot.val();
-            if (Array.isArray(data) && data.length > 0) {
-                // Lưu một bản sao lưu dự phòng vào localStorage
-                localStorage.setItem(galleryStorageKey, JSON.stringify(data));
-                return data.map((user) => ({
-                    id: user.id || normalizeUserId(user.name || 'user'),
-                    name: user.name || 'User',
-                    musicUrl: user.musicUrl || '',
-                    musicSrc: user.musicSrc || '',
-                    images: Array.isArray(user.images) ? user.images : []
-                }));
+            const remoteUsers = normalizeUsers(data);
+            if (remoteUsers.length > 0) {
+                localStorage.setItem(galleryStorageKey, JSON.stringify(remoteUsers));
+                return remoteUsers;
             }
         } catch (error) {
             console.warn("Không thể tải từ Firebase Realtime Database (treo hoặc lỗi), sử dụng dữ liệu dự phòng.", error);
@@ -105,7 +109,7 @@ async function readGalleryUsersAsync() {
     try {
         const savedUsers = JSON.parse(localStorage.getItem(galleryStorageKey));
         if (Array.isArray(savedUsers) && savedUsers.length > 0) {
-            return savedUsers;
+            return normalizeUsers(savedUsers);
         }
     } catch (e) {}
 

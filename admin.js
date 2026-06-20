@@ -55,21 +55,26 @@ function readUsers() {
     return defaultUsers;
 }
 
-function saveUsers() {
+function normalizeUsers(rawUsers) {
+    const sourceUsers = Array.isArray(rawUsers) ? rawUsers : Object.values(rawUsers || {});
+    return sourceUsers.map((user) => ({
+        id: user.id || normalizeUserId(user.name || 'user'),
+        name: user.name || 'User',
+        musicUrl: user.musicUrl || '',
+        musicSrc: user.musicSrc || '',
+        images: Array.isArray(user.images) ? user.images : []
+    }));
+}
+
+async function saveUsers() {
     try {
         localStorage.setItem(galleryStorageKey, JSON.stringify(users));
-        
-        // Đồng bộ dữ liệu trực tuyến lên Firebase Realtime Database
+
         if (typeof firebase !== 'undefined') {
-            firebase.database().ref('galleryUsers').set(users)
-                .then(() => {
-                    console.log("Đã đồng bộ lên Firebase Database.");
-                })
-                .catch((err) => {
-                    console.error("Lỗi đồng bộ Firebase Realtime Database:", err);
-                    setStatus('Lỗi đồng bộ Firebase. Bạn đã bật Rules Test Mode chưa?');
-                });
+            await firebase.database().ref('galleryUsers').set(users);
+            console.log("Đã đồng bộ lên Firebase Database.");
         }
+
         return true;
     } catch (error) {
         setStatus('Lỗi lưu dữ liệu: ' + error.message);
@@ -146,9 +151,9 @@ function renderImages() {
         preview.alt = activeUser.name;
         deleteButton.type = 'button';
         deleteButton.textContent = 'Xóa ảnh';
-        deleteButton.addEventListener('click', () => {
+        deleteButton.addEventListener('click', async () => {
             activeUser.images.splice(index, 1);
-            if (saveUsers()) {
+            if (await saveUsers()) {
                 render();
                 setStatus('Đã xóa ảnh.');
             }
@@ -207,7 +212,7 @@ function resizeImageToBlob(file) {
     });
 }
 
-userForm.addEventListener('submit', (event) => {
+userForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     const name = userNameInput.value.trim();
 
@@ -226,13 +231,13 @@ userForm.addEventListener('submit', (event) => {
     users.push(user);
     activeUserId = user.id;
     userNameInput.value = '';
-    if (saveUsers()) {
+    if (await saveUsers()) {
         render();
         setStatus('Đã thêm user ' + name + '.');
     }
 });
 
-deleteUserButton.addEventListener('click', () => {
+deleteUserButton.addEventListener('click', async () => {
     const activeUser = getActiveUser();
 
     if (activeUser.id === defaultUserId) {
@@ -243,7 +248,7 @@ deleteUserButton.addEventListener('click', () => {
     users = users.filter((user) => user.id !== activeUser.id);
     activeUserId = users[0].id;
     localStorage.setItem('loveRainActiveUser', activeUserId);
-    if (saveUsers()) {
+    if (await saveUsers()) {
         render();
         setStatus('Đã xóa user.');
     }
@@ -257,7 +262,7 @@ musicForm.addEventListener('submit', async (event) => {
     if (!musicUrl) {
         activeUser.musicUrl = '';
         activeUser.musicSrc = '';
-        if (saveUsers()) {
+        if (await saveUsers()) {
             render();
             setStatus('Đã xóa nhạc.');
         }
@@ -283,7 +288,7 @@ musicForm.addEventListener('submit', async (event) => {
             activeUser.musicUrl = '';
             musicUrlInput.value = '';
 
-            if (saveUsers()) {
+            if (await saveUsers()) {
                 render();
                 setStatus('Đã lưu nhạc từ URL lên Cloudinary thành công cho ' + activeUser.name + '.');
             }
@@ -318,7 +323,7 @@ imageUrlForm.addEventListener('submit', async (event) => {
             activeUser.images.push(newImage);
             imageUrlInput.value = '';
 
-            if (saveUsers()) {
+            if (await saveUsers()) {
                 render();
                 setStatus('Đã lưu ảnh từ URL lên Cloudinary thành công cho ' + activeUser.name + '.');
             }
@@ -346,7 +351,7 @@ audioInput.addEventListener('change', async () => {
             activeUser.musicUrl = '';
             musicUrlInput.value = '';
 
-            if (saveUsers()) {
+            if (await saveUsers()) {
                 render();
                 setStatus('Đã tải lên và lưu file nhạc thành công cho ' + activeUser.name + '.');
             }
@@ -384,7 +389,7 @@ imageInput.addEventListener('change', async () => {
         }));
 
         activeUser.images.push(...newImages);
-        if (saveUsers()) {
+        if (await saveUsers()) {
             render();
             setStatus('Đã thêm thành công ' + newImages.length + ' ảnh lên Cloudinary cho ' + activeUser.name + '.');
         }
@@ -412,19 +417,12 @@ async function readUsersAsync() {
     if (typeof firebase !== 'undefined') {
         try {
             console.log("Đang tải cấu hình từ Firebase Realtime Database...");
-            // Giới hạn thời gian chờ kết nối tối đa 2 giây để tránh treo trang
-            const snapshot = await promiseWithTimeout(firebase.database().ref('galleryUsers').once('value'), 2000);
+            const snapshot = await promiseWithTimeout(firebase.database().ref('galleryUsers').once('value'), 6000);
             const data = snapshot.val();
-            if (Array.isArray(data) && data.length > 0) {
-                // Lưu bản sao dự phòng ở localStorage
-                localStorage.setItem(galleryStorageKey, JSON.stringify(data));
-                return data.map((user) => ({
-                    id: user.id || normalizeUserId(user.name || 'user'),
-                    name: user.name || 'User',
-                    musicUrl: user.musicUrl || '',
-                    musicSrc: user.musicSrc || '',
-                    images: Array.isArray(user.images) ? user.images : []
-                }));
+            const remoteUsers = normalizeUsers(data);
+            if (remoteUsers.length > 0) {
+                localStorage.setItem(galleryStorageKey, JSON.stringify(remoteUsers));
+                return remoteUsers;
             }
         } catch (error) {
             console.warn("Lỗi khi tải dữ liệu từ Firebase Database (lỗi hoặc treo), chuyển sang sử dụng local.", error);
