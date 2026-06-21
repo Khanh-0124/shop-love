@@ -9,6 +9,8 @@ const stars = [];
 const shootingStars = [];
 const maxShootingStars = 4;
 const imageCards = [];
+const backgroundCanvas = document.createElement('canvas');
+const backgroundCtx = backgroundCanvas.getContext('2d', { alpha: false });
 const galleryStorageKey = 'loveRainAdminGallery';
 const defaultUserId = 'default';
 const allUsersId = '__all';
@@ -44,7 +46,13 @@ let imageBurstUntil = 0;
 let galleryReady = false;
 let userMusic = null;
 let pendingMusicUrl = '';
-const targetFrameMs = 1000 / 45;
+let cachedRotateX = null;
+let cachedRotateY = null;
+let cachedCosX = 1;
+let cachedSinX = 0;
+let cachedCosY = 1;
+let cachedSinY = 0;
+const targetFrameMs = 1000 / 60;
 
 function randomBetween(min, max) {
     return min + Math.random() * (max - min);
@@ -61,6 +69,10 @@ function getLineHeight(fontSize) {
 
 function setTextFont(fontSize) {
     ctx.font = '700 ' + fontSize + 'px "Dancing Script", cursive';
+}
+
+function getTextFont(fontSize, isIcon) {
+    return '700 ' + fontSize + 'px "' + (isIcon ? 'Quicksand' : 'Dancing Script') + '", cursive';
 }
 
 function normalizeUserId(value) {
@@ -338,6 +350,68 @@ function wrapText(text, maxWidth, fontSize) {
     return lines;
 }
 
+function createTextSprite(lines, fontSize, lineHeight, isIcon) {
+    const sprite = document.createElement('canvas');
+    const spriteCtx = sprite.getContext('2d');
+    const padding = Math.ceil(fontSize * 0.46);
+    spriteCtx.font = getTextFont(fontSize, isIcon);
+
+    let textWidth = 1;
+    for (let i = 0; i < lines.length; i++) {
+        textWidth = Math.max(textWidth, spriteCtx.measureText(lines[i]).width);
+    }
+
+    sprite.width = Math.ceil(textWidth + padding * 2);
+    sprite.height = Math.ceil(lines.length * lineHeight + padding * 2);
+    spriteCtx.font = getTextFont(fontSize, isIcon);
+    spriteCtx.textAlign = 'center';
+    spriteCtx.textBaseline = 'top';
+    spriteCtx.lineJoin = 'round';
+
+    const centerX = sprite.width / 2;
+    const glowColor = 'rgba(204, 0, 112, ';
+    const hotCoreColor = 'rgba(226, 25, 137, 1)';
+    const fillColor = 'rgba(255, 235, 247, 1)';
+
+    spriteCtx.lineWidth = Math.max(3.2, fontSize * 0.2);
+    spriteCtx.strokeStyle = glowColor + '0.1)';
+    spriteCtx.shadowBlur = 4;
+    spriteCtx.shadowColor = glowColor + '0.72)';
+
+    for (let i = 0; i < lines.length; i++) {
+        spriteCtx.strokeText(lines[i], centerX, padding + i * lineHeight);
+    }
+
+    spriteCtx.lineWidth = Math.max(1.7, fontSize * 0.09);
+    spriteCtx.strokeStyle = glowColor + '0.78)';
+    spriteCtx.shadowBlur = 1.5;
+    spriteCtx.shadowColor = 'rgba(204, 0, 112, 0.82)';
+
+    for (let i = 0; i < lines.length; i++) {
+        spriteCtx.strokeText(lines[i], centerX, padding + i * lineHeight);
+    }
+
+    spriteCtx.lineWidth = Math.max(1, fontSize * 0.045);
+    spriteCtx.strokeStyle = hotCoreColor;
+    spriteCtx.fillStyle = fillColor;
+    spriteCtx.shadowBlur = 0.4;
+    spriteCtx.shadowColor = 'rgba(226, 25, 137, 0.65)';
+
+    for (let i = 0; i < lines.length; i++) {
+        const y = padding + i * lineHeight;
+        spriteCtx.strokeText(lines[i], centerX, y);
+        spriteCtx.fillText(lines[i], centerX, y);
+    }
+
+    return {
+        canvas: sprite,
+        x: -sprite.width / 2,
+        y: -padding,
+        width: sprite.width,
+        height: sprite.height
+    };
+}
+
 function getLanePosition(index, totalItems, spreadInitial, blockHeight) {
     const columnCount = width < 520 ? 4 : 7;
     const rowCount = Math.ceil(totalItems / columnCount);
@@ -373,6 +447,7 @@ function createRainItem(spreadInitial = false, index = spawnIndex, totalItems = 
     const activeMessages = (activeUser && activeUser.messages && activeUser.messages.length > 0) ? activeUser.messages : defaultMessages;
     const text = activeMessages[Math.floor(Math.random() * activeMessages.length)];
     const lines = isImage ? [] : isIcon ? [icons[Math.floor(Math.random() * icons.length)]] : wrapText(text, maxTextWidth, fontSize);
+    const textSprite = isImage ? null : createTextSprite(lines, fontSize, lineHeight, isIcon);
     const imageSize = Math.round((width < 520 ? 64 : 82) + depth * (width < 520 ? 9 : 13));
     const blockHeight = isImage ? imageSize : lines.length * lineHeight;
     const position = getLanePosition(index, totalItems, spreadInitial, blockHeight);
@@ -380,6 +455,7 @@ function createRainItem(spreadInitial = false, index = spawnIndex, totalItems = 
 
     return {
         lines,
+        textSprite,
         image: isImage ? imageCards[Math.floor(Math.random() * imageCards.length)] : null,
         imageSize,
         x: position.x,
@@ -516,43 +592,52 @@ function resizeCanvas() {
     canvas.style.width = width + 'px';
     canvas.style.height = height + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    renderBackgroundCache();
 
     if (galleryReady) {
         initScene();
     }
 }
 
-function drawBackground() {
-    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+function renderBackgroundCache() {
+    backgroundCanvas.width = Math.max(1, Math.floor(width * dpr));
+    backgroundCanvas.height = Math.max(1, Math.floor(height * dpr));
+    backgroundCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const gradient = backgroundCtx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0, '#070002');
     gradient.addColorStop(0.18, '#15000d');
     gradient.addColorStop(0.5, '#31001f');
     gradient.addColorStop(0.82, '#120009');
     gradient.addColorStop(1, '#000');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+    backgroundCtx.fillStyle = gradient;
+    backgroundCtx.fillRect(0, 0, width, height);
 
-    ctx.save();
-    ctx.globalAlpha = 0.32;
-    const blurA = ctx.createRadialGradient(width * 0.5, height * 0.46, 0, width * 0.5, height * 0.46, Math.max(width, height) * 0.62);
+    backgroundCtx.save();
+    backgroundCtx.globalAlpha = 0.32;
+    const blurA = backgroundCtx.createRadialGradient(width * 0.5, height * 0.46, 0, width * 0.5, height * 0.46, Math.max(width, height) * 0.62);
     blurA.addColorStop(0, 'rgba(255, 0, 150, 0.28)');
     blurA.addColorStop(0.45, 'rgba(255, 0, 150, 0.12)');
     blurA.addColorStop(1, 'rgba(255, 0, 150, 0)');
-    ctx.fillStyle = blurA;
-    ctx.fillRect(0, 0, width, height);
+    backgroundCtx.fillStyle = blurA;
+    backgroundCtx.fillRect(0, 0, width, height);
 
-    const blurB = ctx.createRadialGradient(width * 0.24, height * 0.74, 0, width * 0.24, height * 0.74, Math.max(width, height) * 0.36);
+    const blurB = backgroundCtx.createRadialGradient(width * 0.24, height * 0.74, 0, width * 0.24, height * 0.74, Math.max(width, height) * 0.36);
     blurB.addColorStop(0, 'rgba(255, 105, 180, 0.18)');
     blurB.addColorStop(1, 'rgba(255, 105, 180, 0)');
-    ctx.fillStyle = blurB;
-    ctx.fillRect(0, 0, width, height);
+    backgroundCtx.fillStyle = blurB;
+    backgroundCtx.fillRect(0, 0, width, height);
 
-    const vignette = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.2, width / 2, height / 2, Math.max(width, height) * 0.74);
+    const vignette = backgroundCtx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.2, width / 2, height / 2, Math.max(width, height) * 0.74);
     vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
     vignette.addColorStop(1, 'rgba(0, 0, 0, 0.62)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, width, height);
-    ctx.restore();
+    backgroundCtx.fillStyle = vignette;
+    backgroundCtx.fillRect(0, 0, width, height);
+    backgroundCtx.restore();
+}
+
+function drawBackground() {
+    ctx.drawImage(backgroundCanvas, 0, 0, width, height);
 }
 
 function drawStars(deltaTime, time) {
@@ -570,7 +655,7 @@ function drawStars(deltaTime, time) {
         const opacity = star.opacity * (0.72 + Math.sin(time * 1.8 + star.pulse) * 0.28);
         ctx.globalAlpha = opacity;
         ctx.fillStyle = star.color;
-        ctx.shadowBlur = star.size * 4;
+        ctx.shadowBlur = star.size > 2.4 ? star.size * 2.2 : 0;
         ctx.shadowColor = star.color;
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
@@ -592,31 +677,38 @@ function drawStars(deltaTime, time) {
     ctx.restore();
 }
 
-function projectPoint(x, y, depth) {
+function updateRotationCache() {
+    if (cachedRotateX === rotateX && cachedRotateY === rotateY) {
+        return;
+    }
+
     const rotateXRadians = rotateX * Math.PI / 180;
     const rotateYRadians = rotateY * Math.PI / 180;
+    cachedCosY = Math.cos(rotateYRadians);
+    cachedSinY = Math.sin(rotateYRadians);
+    cachedCosX = Math.cos(rotateXRadians);
+    cachedSinX = Math.sin(rotateXRadians);
+    cachedRotateX = rotateX;
+    cachedRotateY = rotateY;
+}
+
+function projectRainItem(item, x) {
     const perspective = 980;
     const centerX = width / 2;
     const centerY = height / 2;
     const sourceX = x - centerX;
-    const sourceY = y - centerY;
-    const sourceZ = (depth - 2) * 150;
-    const cosY = Math.cos(rotateYRadians);
-    const sinY = Math.sin(rotateYRadians);
-    const cosX = Math.cos(rotateXRadians);
-    const sinX = Math.sin(rotateXRadians);
-    const rotatedX = sourceX * cosY + sourceZ * sinY;
-    const rotatedZAfterY = -sourceX * sinY + sourceZ * cosY;
-    const rotatedY = sourceY * cosX - rotatedZAfterY * sinX;
-    const rotatedZ = sourceY * sinX + rotatedZAfterY * cosX;
+    const sourceY = item.y - centerY;
+    const sourceZ = (item.z - 2) * 150;
+    const rotatedX = sourceX * cachedCosY + sourceZ * cachedSinY;
+    const rotatedZAfterY = -sourceX * cachedSinY + sourceZ * cachedCosY;
+    const rotatedY = sourceY * cachedCosX - rotatedZAfterY * cachedSinX;
+    const rotatedZ = sourceY * cachedSinX + rotatedZAfterY * cachedCosX;
     const scale = perspective / Math.max(360, perspective - rotatedZ);
 
-    return {
-        x: centerX + rotatedX * scale,
-        y: centerY + rotatedY * scale,
-        scale,
-        z: rotatedZ
-    };
+    item.projectedX = centerX + rotatedX * scale;
+    item.projectedY = centerY + rotatedY * scale;
+    item.projectedScale = scale;
+    item.projectedZ = rotatedZ;
 }
 
 function roundedRect(x, y, rectWidth, rectHeight, radius) {
@@ -637,15 +729,15 @@ function drawRoundedImage(image, size, opacity) {
 
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.shadowBlur = isDragging ? 22 : 42;
-    ctx.shadowColor = 'rgba(255, 0, 150, 1)';
+    ctx.shadowBlur = isDragging ? 12 : 18;
+    ctx.shadowColor = 'rgba(255, 0, 150, 0.72)';
     ctx.fillStyle = 'rgba(255, 0, 150, 0.34)';
     ctx.beginPath();
     roundedRect(-half - 6, -6, size + 12, size + 12, radius + 6);
     ctx.fill();
 
-    ctx.shadowBlur = isDragging ? 10 : 18;
-    ctx.shadowColor = 'rgba(255, 245, 251, 0.95)';
+    ctx.shadowBlur = isDragging ? 6 : 8;
+    ctx.shadowColor = 'rgba(255, 245, 251, 0.72)';
     ctx.fillStyle = 'rgba(255, 245, 251, 0.22)';
     ctx.beginPath();
     roundedRect(-half - 2, -2, size + 4, size + 4, radius + 2);
@@ -660,41 +752,13 @@ function drawRoundedImage(image, size, opacity) {
 }
 
 function drawNeonText(item, opacity) {
-    const glowColor = 'rgba(204, 0, 112, ';
-    const hotCoreColor = 'rgba(226, 25, 137, ' + Math.min(opacity * 1.02, 1) + ')';
-    const fillColor = 'rgba(255, 235, 247, ' + Math.min(opacity * 1.12, 1) + ')';
-
-    ctx.lineJoin = 'round';
-
-    ctx.lineWidth = Math.max(3.2, item.fontSize * 0.2);
-    ctx.strokeStyle = glowColor + '0.1)';
-    ctx.shadowBlur = 4;
-    ctx.shadowColor = glowColor + '0.72)';
-
-    for (let i = 0; i < item.lines.length; i++) {
-        ctx.strokeText(item.lines[i], 0, i * item.lineHeight);
+    if (!item.textSprite) {
+        return;
     }
 
-    ctx.lineWidth = Math.max(1.7, item.fontSize * 0.09);
-    ctx.strokeStyle = glowColor + '0.78)';
-    ctx.shadowBlur = 1.5;
-    ctx.shadowColor = 'rgba(204, 0, 112, 0.82)';
-
-    for (let i = 0; i < item.lines.length; i++) {
-        ctx.strokeText(item.lines[i], 0, i * item.lineHeight);
-    }
-
-    ctx.lineWidth = Math.max(1, item.fontSize * 0.045);
-    ctx.strokeStyle = hotCoreColor;
-    ctx.fillStyle = fillColor;
-    ctx.shadowBlur = 0.4;
-    ctx.shadowColor = 'rgba(226, 25, 137, 0.65)';
-
-    for (let i = 0; i < item.lines.length; i++) {
-        const y = i * item.lineHeight;
-        ctx.strokeText(item.lines[i], 0, y);
-        ctx.fillText(item.lines[i], 0, y);
-    }
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(item.textSprite.canvas, item.textSprite.x, item.textSprite.y, item.textSprite.width, item.textSprite.height);
+    ctx.globalAlpha = 1;
 }
 
 function drawRainItem(item, deltaTime, time) {
@@ -704,11 +768,7 @@ function drawRainItem(item, deltaTime, time) {
     if (item.y > height + item.blockHeight + 80) {
         Object.assign(item, createRainItem(false, spawnIndex, rainItems.length));
         const recycledX = item.x + Math.sin(item.wave + time * 0.45) * item.drift;
-        const recycledProjection = projectPoint(recycledX, item.y, item.z);
-        item.projectedX = recycledProjection.x;
-        item.projectedY = recycledProjection.y;
-        item.projectedScale = recycledProjection.scale;
-        item.projectedZ = recycledProjection.z;
+        projectRainItem(item, recycledX);
         needsDepthSort = true;
     }
 
@@ -781,15 +841,12 @@ function animate(currentTime) {
     drawBackground();
     drawStars(deltaTime, time);
     drawShootingStars(deltaTime);
+    updateRotationCache();
 
     for (let i = 0; i < rainItems.length; i++) {
         const item = rainItems[i];
         const x = item.x + Math.sin(item.wave + time * 0.45) * item.drift;
-        const projected = projectPoint(x, item.y, item.z);
-        item.projectedX = projected.x;
-        item.projectedY = projected.y;
-        item.projectedScale = projected.scale;
-        item.projectedZ = projected.z;
+        projectRainItem(item, x);
     }
 
     if (needsDepthSort) {
