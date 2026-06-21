@@ -168,10 +168,65 @@ function pickActiveUser(users) {
 function loadImage(src) {
     return new Promise((resolve) => {
         const image = new Image();
+        image.crossOrigin = 'anonymous';
         image.onload = () => resolve(image);
         image.onerror = () => resolve(null);
         image.src = src;
     });
+}
+
+function updateFavicon(imageSrc) {
+    let link = document.querySelector("link[rel~='icon']");
+    if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    link.href = imageSrc;
+}
+
+function resetFaviconToDefault() {
+    updateFavicon("data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💖</text></svg>");
+}
+
+function setDynamicFavicon(imageElement) {
+    if (!imageElement) {
+        resetFaviconToDefault();
+        return;
+    }
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+
+        // Cắt ảnh thành hình tròn làm avatar favicon
+        ctx.beginPath();
+        ctx.arc(32, 32, 30, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        // Vẽ và căn chỉnh tỉ lệ hình ảnh vừa khít hình tròn
+        const size = 64;
+        const scale = Math.max(size / imageElement.width, size / imageElement.height);
+        const drawWidth = imageElement.width * scale;
+        const drawHeight = imageElement.height * scale;
+        const drawX = (size - drawWidth) / 2;
+        const drawY = (size - drawHeight) / 2;
+        ctx.drawImage(imageElement, drawX, drawY, drawWidth, drawHeight);
+
+        // Vẽ viền hồng bảo vệ xinh xắn bao quanh avatar để favicon nổi bật
+        ctx.strokeStyle = '#ff4dbe';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(32, 32, 30, 0, Math.PI * 2);
+        ctx.stroke();
+
+        updateFavicon(canvas.toDataURL('image/png'));
+    } catch (e) {
+        console.warn("Không thể tạo favicon động từ ảnh này (lỗi CORS hoặc định dạng):", e);
+        resetFaviconToDefault();
+    }
 }
 
 async function loadActiveUserImages() {
@@ -180,6 +235,13 @@ async function loadActiveUserImages() {
     galleryReady = true;
     initScene();
     startUserMusic(activeUser.musicSrc || activeUser.musicUrl || '');
+
+    // Cập nhật favicon động từ ảnh đầu tiên của user nếu có, ngược lại dùng trái tim mặc định
+    if (activeUserImages.length > 0) {
+        setDynamicFavicon(activeUserImages[0]);
+    } else {
+        resetFaviconToDefault();
+    }
 }
 
 function setActiveUser(userId, shouldUpdateUrl = true) {
