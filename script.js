@@ -59,8 +59,8 @@ function randomBetween(min, max) {
 }
 
 function getFontSize(depth) {
-    const base = width < 520 ? 18 : 19;
-    return base + depth * (width < 520 ? 2.4 : 3.4);
+    const base = width < 520 ? 12 : 13;
+    return base + depth * (width < 520 ? 1.6 : 2.2);
 }
 
 function getLineHeight(fontSize) {
@@ -423,41 +423,49 @@ function createTextSprite(lines, fontSize, lineHeight, isIcon) {
         textWidth = Math.max(textWidth, spriteCtx.measureText(lines[i]).width);
     }
 
-    sprite.width = Math.ceil(textWidth + padding * 2);
-    sprite.height = Math.ceil(lines.length * lineHeight + padding * 2);
+    const logicalWidth = Math.ceil(textWidth + padding * 2);
+    const logicalHeight = Math.ceil(lines.length * lineHeight + padding * 2);
+
+    // Sử dụng dpr để nhân độ phân giải thực tế của canvas phụ
+    sprite.width = logicalWidth * dpr;
+    sprite.height = logicalHeight * dpr;
+
+    // Scale context theo dpr để vẽ nét chữ sắc sảo
+    spriteCtx.scale(dpr, dpr);
     spriteCtx.font = getTextFont(fontSize, isIcon);
     spriteCtx.textAlign = 'center';
     spriteCtx.textBaseline = 'top';
     spriteCtx.lineJoin = 'round';
 
-    const centerX = sprite.width / 2;
+    const centerX = logicalWidth / 2;
     const glowColor = 'rgba(204, 0, 112, ';
     const hotCoreColor = 'rgba(226, 25, 137, 1)';
     const fillColor = 'rgba(255, 235, 247, 1)';
 
-    spriteCtx.lineWidth = Math.max(3.2, fontSize * 0.2);
-    spriteCtx.strokeStyle = glowColor + '0.1)';
-    spriteCtx.shadowBlur = 4;
-    spriteCtx.shadowColor = glowColor + '0.72)';
+    // Điều chỉnh nét vẽ mịn màng, sắc mảnh hơn
+    spriteCtx.lineWidth = Math.max(2.0, fontSize * 0.12);
+    spriteCtx.strokeStyle = glowColor + '0.08)';
+    spriteCtx.shadowBlur = 2.5;
+    spriteCtx.shadowColor = glowColor + '0.65)';
 
     for (let i = 0; i < lines.length; i++) {
         spriteCtx.strokeText(lines[i], centerX, padding + i * lineHeight);
     }
 
-    spriteCtx.lineWidth = Math.max(1.7, fontSize * 0.09);
-    spriteCtx.strokeStyle = glowColor + '0.78)';
-    spriteCtx.shadowBlur = 1.5;
-    spriteCtx.shadowColor = 'rgba(204, 0, 112, 0.82)';
+    spriteCtx.lineWidth = Math.max(1.0, fontSize * 0.06);
+    spriteCtx.strokeStyle = glowColor + '0.72)';
+    spriteCtx.shadowBlur = 1.0;
+    spriteCtx.shadowColor = 'rgba(204, 0, 112, 0.76)';
 
     for (let i = 0; i < lines.length; i++) {
         spriteCtx.strokeText(lines[i], centerX, padding + i * lineHeight);
     }
 
-    spriteCtx.lineWidth = Math.max(1, fontSize * 0.045);
+    spriteCtx.lineWidth = Math.max(0.6, fontSize * 0.03);
     spriteCtx.strokeStyle = hotCoreColor;
     spriteCtx.fillStyle = fillColor;
-    spriteCtx.shadowBlur = 0.4;
-    spriteCtx.shadowColor = 'rgba(226, 25, 137, 0.65)';
+    spriteCtx.shadowBlur = 0.2;
+    spriteCtx.shadowColor = 'rgba(226, 25, 137, 0.55)';
 
     for (let i = 0; i < lines.length; i++) {
         const y = padding + i * lineHeight;
@@ -467,10 +475,10 @@ function createTextSprite(lines, fontSize, lineHeight, isIcon) {
 
     return {
         canvas: sprite,
-        x: -sprite.width / 2,
+        x: -logicalWidth / 2,
         y: -padding,
-        width: sprite.width,
-        height: sprite.height
+        width: logicalWidth,
+        height: logicalHeight
     };
 }
 
@@ -646,7 +654,7 @@ function initScene() {
 }
 
 function resizeCanvas() {
-    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
     width = window.innerWidth;
     height = window.innerHeight;
     canvas.width = Math.floor(width * dpr);
